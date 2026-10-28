@@ -14,7 +14,7 @@ permissions:
 jobs:
   candidate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -41,6 +41,19 @@ jobs:
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: bash scripts/run-client-smoke-test.sh -Pmod_version="$RELEASE_VERSION"
+      - name: Preserve enabled client evidence
+        if: always()
+        run: |
+          mkdir -p build/diagnostics/enabled
+          for evidence in logs screenshots crash-reports surface-proof.json; do
+            if [ -e "build/run/clientGameTest/$evidence" ]; then
+              cp -R "build/run/clientGameTest/$evidence" build/diagnostics/enabled/
+            fi
+          done
+      - name: Validate candidate with surface generation disabled
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: bash scripts/run-client-smoke-test.sh -Pmod_version="$RELEASE_VERSION" -PsurfaceGenerationDisabled=true
       - uses: actions/upload-artifact@v7
         with:
           name: lost-railways-${{ inputs.version }}
@@ -57,3 +70,4 @@ jobs:
             build/test-results/
             build/run/**/logs/
             build/run/**/screenshots/
+            build/run/**/surface-proof.json

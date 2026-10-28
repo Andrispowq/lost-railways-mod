@@ -102,4 +102,20 @@ class ConfigStoreTest {
         }
     }
 
+    @Test
+    void surfaceSettingsMigrateAndRejectUnsafeDepthOrDamage() throws IOException {
+        Path path = directory.resolve("config.json");
+        Files.writeString(path, "{}");
+        assertEquals(SurfaceConfig.defaults(), ConfigStore.load(path).surface());
+        Files.writeString(path, "{\"surface\":{\"missingRailChance\":0.3}}");
+        assertEquals(0.3, ConfigStore.load(path).surface().missingRailChance());
+        for (String fields : new String[]{"\"minimumRailY\":-1", "\"minimumRailY\":12.5", "\"missingRailChance\":0.9",
+                "\"missingBedChance\":0.9", "\"missingRailChance\":1e999", "\"missingRailChance\":\"0.2\""}) {
+            String content = "{\"surface\":{" + fields + "}}";
+            Files.writeString(path, content);
+            assertThrows(RuntimeException.class, () -> ConfigStore.load(path));
+            assertEquals(content, Files.readString(path));
+        }
+    }
+
 }

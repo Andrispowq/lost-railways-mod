@@ -68,4 +68,38 @@ Manual checks: compare adjacent region exports across a server restart; try a da
 change on a fresh world and confirm an existing world's policy stays frozen. Inspect multiple seeds
 before adjusting density. Region timing is included in command output; this is not a world-generation
 performance benchmark, since Phase C installs no placement callback. Physical placement/protection,
-route refinement, and shared-corridor junctions are Phase D work.
+route refinement, and shared-corridor junctions are covered by Phase D below.
+
+
+## Phase D surface placement
+
+`./gradlew build` includes pure layout/placement tests and real Minecraft chunk integration tests.
+Coverage includes positive/negative chunk seams, slopes and curves, merged junctions, deterministic
+wear under reversed/concurrent traversal, chunk-owned station footprints, whole-template rejection,
+protected blocks/fluids/trees, existing-terrain exclusion, structure references, immutable surface
+snapshots, and persisted generation-protection attachments.
+
+Run both end-to-end modes in separate JVMs:
+
+```sh
+./gradlew runClientGameTest
+./gradlew runClientGameTest -PsurfaceGenerationDisabled=true
+```
+
+Each run uses disposable config. The surface test creates two normal seed-42 dedicated-server worlds,
+generates reference-route chunks in opposite orders, compares every marked block and state, and verifies
+player changes remain possible. The enabled run requires actual vanilla rails; the disabled run requires
+zero placement. `build/run/clientGameTest/surface-proof.json` records coordinates, block states, rail
+counts, chunk timings, mean, and p95. Copy evidence before the next run, which deletes that run directory.
+CI runs both modes independently and uploads the proofs. The same property can be passed to
+`scripts/run-client-smoke-test.sh` or the Docker image command.
+
+The timings include synchronous test requests, native generation dependencies, and cold region planning.
+They are a small regression sample, not certification of the spec's <15% representative generation
+budget. Before release, benchmark a multi-seed exploration workload against disabled generation on the
+same machine, comparing average and p95 latency after warm-up.
+
+Manual checks: inspect fresh plains/forest routes, repair gaps and ride through curves/junctions; check
+station appearance and terrain integration on several seeds. Save/restart, edit a generated station,
+and explore adjacent new chunks to confirm edits stay intact. Compare a pre-existing save before/after
+upgrade: only fresh terrain should gain railways. Removing the mod leaves vanilla blocks behind.

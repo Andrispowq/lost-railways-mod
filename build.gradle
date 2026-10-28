@@ -96,3 +96,13 @@ tasks.named('runGameTest') {
         new File(gameTestDirectory, 'eula.txt').text = 'eula=true\n'
     }
 }
+
+// Separate process/config for generation-off validation; never mutate a running server's global settings.
+tasks.named('runClientGameTest') {
+    doFirst {
+        def configFile = layout.buildDirectory.file('run/clientGameTest/config/lost_railways.json').get().asFile
+        configFile.parentFile.mkdirs()
+        configFile.text = groovy.json.JsonOutput.toJson([schemaVersion: 1,
+                generationEnabled: !providers.gradleProperty('surfaceGenerationDisabled').map { it.toBoolean() }.orElse(false).get()])
+    }
+}

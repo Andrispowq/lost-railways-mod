@@ -1,7 +1,7 @@
 package io.github.andrispowq.lostrailways.planner;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import io.github.andrispowq.lostrailways.LostRailwaysMod;
+import io.github.andrispowq.lostrailways.surface.RailwayWorlds;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.commands.CommandSourceStack;
@@ -26,9 +26,9 @@ public final class PlannerCommands {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             try {
                 var data = server.getWorldPath(LevelResource.DATA);
-                var settings = WorldPlanStore.loadOrCreate(data.resolve("lost_railways_planner.json"), () ->
-                        new WorldPlanSettings(1, LostRailwaysMod.config().generationEnabled(), LostRailwaysMod.config().planner(),
-                                MinecraftTerrain.resolveBiomes(server.overworld(), LostRailwaysMod.config().planner())));
+                var world = RailwayWorlds.get(server.overworld());
+                if (world == null) throw new IllegalStateException("Invalid persisted railway settings");
+                var settings = world.settings();
                 SERVICES.put(server, new PlannerService(settings, data.resolve("lost_railways_debug")));
                 LOGGER.info("World planner v{} initialized; generation enabled: {}", settings.plannerVersion(), settings.generationEnabled());
             } catch (Exception exception) {
@@ -42,6 +42,7 @@ public final class PlannerCommands {
                 service.close();
             }
         });
+        ServerLifecycleEvents.SERVER_STOPPED.register(RailwayWorlds::release);
         CommandRegistrationCallback.EVENT.register((dispatcher, registries, environment) -> dispatcher.register(
                 Commands.literal("lostrailways").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.literal("graph")

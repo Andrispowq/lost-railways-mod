@@ -17,7 +17,7 @@ import java.util.Map;
 public final class MinecraftTerrain {
     private MinecraftTerrain() { }
 
-    /** Resolve tag membership once on the server thread, then persist plain values. Exclusions win. */
+    /** Resolve immutable worldgen registry tag membership once, then persist plain values. Exclusions win. */
     public static Map<String, BiomeRule> resolveBiomes(ServerLevel level, PlannerConfig config) {
         Map<TagKey<Biome>, BiomeRule> tags = new HashMap<>();
         config.biomeRules().forEach((tag, rule) -> tags.put(TagKey.create(Registries.BIOME, Identifier.parse(tag)), rule));
@@ -39,7 +39,7 @@ public final class MinecraftTerrain {
         return Map.copyOf(result);
     }
 
-    /** Capture generator inputs on the server thread. The returned sampler never accesses the level/chunk source. */
+    /** Capture immutable generator inputs. The returned sampler never accesses the level/chunk source. */
     public static TerrainSampler capture(ServerLevel level, WorldPlanSettings settings) {
         var generator = level.getChunkSource().getGenerator();
         if (!(generator instanceof NoiseBasedChunkGenerator) && !(generator instanceof FlatLevelSource)) {

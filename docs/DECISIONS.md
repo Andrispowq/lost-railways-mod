@@ -189,3 +189,46 @@ connected route in this reference region; that assertion was checked against bot
 Evidence is retained under ignored `build/phase-c-evidence/`. The mod JAR contains planner classes
 and biome tags and excludes test classes. Existing CI tasks discover the expanded suites; GitHub
 status remains for the owner to check after committing/pushing.
+
+
+## 2026-10-28 — Phase D surface placement
+
+Refine planner-v1 cardinal paths per column, merge shared geometry before deriving vanilla rail shapes,
+and use coordinate-seeded wear independent of chunk order. Keep templates entirely owned by one chunk;
+validate all ground/clearance/bounds against original terrain before any writes, then reject conflicting
+pieces atomically. Plains/forest styles use only vanilla blocks, rare unpowered powered rails, small
+weathered platforms and shelters, and junction markers. Four-way crossings deliberately omit the center
+rail; tunnels, bridges, broad biome coverage, and large stations remain later work.
+
+Minecraft 26.3 decorates features after neighboring terrain is available. A decoration feature cannot
+reliably inspect untouched terrain because earlier neighbors may already have written vegetation there.
+Append placement to the TERRAIN task future instead: native FEATURES waits for all neighboring TERRAIN
+futures, so every railway is decided before decoration. Use two daemon workers and a sixteen-region LRU;
+Minecraft controls outstanding chunk tasks. Generator base-height and private biome-cache queries need
+no additional loaded chunks. Keep command planning on its separate bounded service.
+
+Only fresh, non-retrogen ProtoChunks are eligible. Loading existing terrain follows Minecraft's loading
+pipeline and never calls placement. Protect all valid structure starts/references in the native 3×3
+terrain dependency area. Use a narrow natural-ground whitelist; no block entities, fluid removal, tree
+clearing, ore/deepslate replacement, or writes outside the owning chunk/world border/minimum height.
+Re-prime final heightmaps after placement. A persistent Fabric chunk attachment stores exact generated
+cells; a generation-only WorldGenRegion write guard prevents later lakes/vegetation from erasing them,
+including after a partially generated chunk is saved. Normal Level/player writes are unaffected.
+
+Initialize world settings lazily because spawn generation precedes SERVER_STARTED. Preserve planner-v1
+snapshots and freeze Phase D config/styles separately in lost_railways_surface.json. Invalid snapshots
+are preserved and disable generation. The instance generation switch now additionally acts as a kill
+switch after restart; the immutable world switch must also allow generation. Existing blocks remain.
+
+Validation adds unit, Minecraft chunk, and normal-noise-world end-to-end tests. CI runs generation-enabled
+and generation-disabled client suites independently, retaining block/timing proofs. Performance proof
+is deliberately a small cold-load sample; representative multi-seed overhead certification remains a
+release check rather than an unsupported guarantee.
+
+Final local verification: 39 JUnit tests, 18 enabled server GameTests, and 11 disabled-minecart
+server GameTests passed. Native client suites passed with generation on and off; the Ubuntu 24.04
+ARM64/Xvfb Docker suite passed in two minutes. The enabled macOS/Linux proofs contain identical
+141 marked blocks including 64 rails in the sampled reference chunks, with matching forward/reverse
+chunk-order output. Disabled generation produced zero marked blocks. The packaged JAR excludes tests.
+Evidence lives in ignored build/phase-d-evidence/. Timing samples were not a controlled performance
+comparison (the disabled run overlapped Docker work), so no overhead percentage is claimed.

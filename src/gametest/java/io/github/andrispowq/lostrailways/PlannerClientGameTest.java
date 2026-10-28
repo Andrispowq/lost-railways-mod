@@ -13,6 +13,7 @@ import java.nio.file.Files;
 public final class PlannerClientGameTest implements FabricClientGameTest {
     @Override
     public void runTest(ClientGameTestContext context) {
+        if (!LostRailwaysMod.config().generationEnabled()) return;
         // The command test needs a connected client, not a large rendered/simulated terrain area.
         int renderDistance = context.computeOnClient(client -> client.options.renderDistance().get());
         int simulationDistance = context.computeOnClient(client -> client.options.simulationDistance().get());

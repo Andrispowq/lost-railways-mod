@@ -38,7 +38,8 @@ public final class ConfigStore {
                 readBoolean(json, "generationEnabled", defaults.generationEnabled()),
                 readBoolean(json, "minecartOverhaulEnabled", defaults.minecartOverhaulEnabled()),
                 readBoolean(json, "elytraBalanceEnabled", defaults.elytraBalanceEnabled()),
-                readMinecartConfig(json), readPlannerConfig(json));
+                readMinecartConfig(json), readPlannerConfig(json),
+                json.has("surface") ? SurfaceConfig.read(json.getAsJsonObject("surface"), true) : SurfaceConfig.defaults());
     }
 
     private static MinecartConfig readMinecartConfig(JsonObject json) {

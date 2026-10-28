@@ -2,8 +2,9 @@
 
 A Minecraft Java 26.3 Fabric mod about discovering, restoring, and reusing abandoned railways.
 
-**Status: Phase C network planner.** Minecart speed improvements and deterministic, inspectable railway
-planning are implemented. Physical railway placement and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
+**Status: Phase D surface railways.** Minecart improvements, deterministic networks, abandoned tracks,
+small stations, and junctions are implemented for new plains/forest terrain. Broader biome coverage,
+tunnels/bridges, and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
 
 ## Development
 
@@ -12,10 +13,10 @@ The game requires Java 25; development and CI deliberately use that version too.
 
 ```sh
 ./gradlew build                 # Compile, JUnit tests, server GameTests, JARs
-./gradlew test                  # Fast config, movement, and planner unit tests
-./gradlew runGameTest           # Minecart and planner server integration tests
+./gradlew test                  # Fast config, movement, planner, and placement tests
+./gradlew runGameTest           # Minecart, planner, and placement integration tests
 ./gradlew runGameTest -PvanillaMinecartTests=true # Disabled-overhaul regression in a separate JVM
-./gradlew runClientGameTest     # Rendering, riding, connection, and graph command tests
+./gradlew runClientGameTest     # Rendering, riding, commands, and real-terrain tests
 ./gradlew runClient             # Interactive development client
 ./gradlew runServer             # Interactive dedicated server
 ```
@@ -76,7 +77,7 @@ transient and resets after unloading/restarting; cart inventory remains vanilla 
 
 Existing Phase A config files remain valid; missing nested settings use defaults without rewriting the
 file. Invalid values log an error and fall back to defaults while preserving the original file. Restart
-to apply changes; live movement-mode changes are intentionally unsupported. The generation switch is snapshotted per world; the Elytra
+to apply changes; live movement-mode changes are intentionally unsupported. The generation switch is also a runtime kill switch after restart; the Elytra
 switch remains reserved for a later phase.
 
 ## Inspect planned railway networks
@@ -124,15 +125,48 @@ map. Tags live under `data/lost_railways/tags/worldgen/biome/` and can be extend
 
 On first initialization, `<world>/data/lost_railways_planner.json` freezes the planner version,
 generation switch, numeric settings, and resolved biome policy. Later config edits or tag reloads
-cannot rearrange that world's network. Set `generationEnabled: false` **before creating a world** to
-disable planning there. Malformed/future-version snapshots disable planning and are preserved; they
+cannot rearrange that world's network. Set `generationEnabled: false` and restart to stop new placement
+in any world; existing railways remain. Worlds created with generation disabled remain disabled even
+if the instance switch is subsequently enabled. Malformed/future-version snapshots disable planning and are preserved; they
 are never silently reset. Keep the snapshot with backups; automatic migration/reset is not provided.
 Reproducibility assumes the same underlying seed/generator and worldgen definitions, not just the
 same mod config; changing those requires separate migration analysis.
 
-Routes are coarse intent on a fixed 33×33 sample grid, not construction-ready tracks. Phase D must
-refine paths, resolve shared corridors/intersections, and validate every placement against terrain,
-structures, and player builds before placing rails. No world-generation hook is installed yet.
+## Discover abandoned surface railways
+
+Phase D refines coarse routes to per-block rail shapes as **new terrain** generates. Explore plains and
+forests in a new world, or previously ungenerated terrain in an existing world. Already generated chunks
+are never retrofitted. `/lostrailways graph` exports coordinates to help find routes; it remains read-only.
+For a reproducible playtest, create a normal world with seed `42`, inspect region `80 80`, and explore
+around X=164096, Z=165056 toward X=164480, Z=164608. Use spectator mode to survey the surface.
+
+Plains use gravel ballast and weathered stone platforms; forests use mossy ballast, wooden platforms,
+more missing rails, and fewer shelters. Tracks include curves, gentle slopes, occasional **unpowered**
+powered rails, and deterministic gaps. Three-way junctions use vanilla curves; four-way crossings are
+left visibly broken because one vanilla rail cannot connect four directions. Small roofed stations
+need a flat, clear footprint; a planned node does not guarantee a building on unsuitable terrain.
+
+All blocks are vanilla. Placement skips fluids, trees, block entities, ores, deepslate, unsafe slopes,
+and chunks within a conservative one-chunk buffer of structure references. Whole station templates
+are rejected on conflicts. Later world-generation features cannot overwrite generated railway cells;
+players can freely repair, replace, and remove them. Gaps across unsuitable terrain are intentional:
+bridges, tunnels, and extensive earthworks are outside this phase.
+
+Optional configuration for new surface snapshots:
+
+```json
+"surface": {
+  "minimumRailY": 12,
+  "missingRailChance": 0.18,
+  "missingBedChance": 0.035
+}
+```
+
+The minimum accepts 12–256, missing rails 0–0.6, and missing ballast 0–0.15. Ground-support checks also
+respect the minimum, so the lowest eligible tracks may be skipped. The world stores these settings and
+resolved styles in `data/lost_railways_surface.json`. Existing Phase C planner snapshots retain their
+network unchanged; surface settings freeze on first initialization with Phase D. Keep both snapshots
+with backups. Changing config does not change an existing world's wear pattern.
 
 ## Tests and CI
 
@@ -143,13 +177,15 @@ structures, and player builds before placing rails. No world-generation hook is 
   position synchronization, reconnecting, and rendered screenshots. Planner integration tests verify
   operator commands, biome tags, persisted settings, and sampling without loading remote chunks; a
   normal-world client test checks the noise generator and a connected reference route.
-- GitHub Actions runs build/server tests and the client smoke test with Xvfb on Linux. Reports and
+- Surface tests cover chunk-order determinism, seams, curves, junctions, atomic station rejection,
+  protected terrain, persisted settings/protection, and actual noise-world rails.
+- GitHub Actions runs build/server tests and enabled/disabled generation client suites with Xvfb on Linux. Reports and
   screenshots are uploaded even on failures. Unit and integration results live under `build/`.
 - The **Release candidate** workflow builds a supplied version after both test layers pass and retains
   downloadable JARs. Public publishing is deferred until a license and distribution destinations
   (for example Modrinth/CurseForge) are selected and credentials configured.
 
-See [the Phase B tester guide](docs/TESTING.md) for manual coverage and remaining compatibility/performance
+See [the tester guide](docs/TESTING.md) for manual coverage and remaining compatibility/performance
 checks. The automated suite does not certify arbitrary modpacks or multi-player server load.
 
 ## Docker

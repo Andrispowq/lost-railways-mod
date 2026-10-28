@@ -8,12 +8,14 @@
     "fabric-gametest": [
       "io.github.andrispowq.lostrailways.BootstrapGameTest",
       "io.github.andrispowq.lostrailways.PlannerGameTests",
+      "io.github.andrispowq.lostrailways.SurfaceGameTests",
       "io.github.andrispowq.lostrailways.MinecartGameTests"
     ],
     "fabric-client-gametest": [
       "io.github.andrispowq.lostrailways.BootstrapClientGameTest",
       "io.github.andrispowq.lostrailways.MinecartClientGameTest",
-      "io.github.andrispowq.lostrailways.PlannerClientGameTest"
+      "io.github.andrispowq.lostrailways.PlannerClientGameTest",
+      "io.github.andrispowq.lostrailways.SurfaceClientGameTest"
     ]
   },
   "depends": {
