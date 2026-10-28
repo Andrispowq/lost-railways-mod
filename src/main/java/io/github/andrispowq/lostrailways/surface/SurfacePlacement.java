@@ -13,6 +13,7 @@ public final class SurfacePlacement {
     public interface Target {
         boolean canWrite(SurfacePiece.Cell cell);
         Existing existing(SurfacePiece.Cell cell);
+        default boolean canExcavate(SurfacePiece.Cell cell) { return false; }
         void write(SurfacePiece.Change change);
     }
 
@@ -23,16 +24,18 @@ public final class SurfacePlacement {
         int accepted = 0;
         List<SurfacePiece> ordered = new ArrayList<>(pieces);
         ordered.sort(Comparator.comparingInt(piece -> switch (piece.kind()) {
-            case TRACK -> 0;
-            case STATION -> 1;
-            case JUNCTION -> 2;
+            case BRIDGE, TUNNEL -> 0;
+            case TRACK -> 1;
+            case STATION -> 2;
+            case JUNCTION -> 3;
         }));
         for (SurfacePiece piece : ordered) {
-            boolean safe = piece.ground().stream().allMatch(cell -> target.canWrite(cell) && target.existing(cell) == Existing.NATURAL_GROUND)
+            boolean safe = piece.excavation().stream().allMatch(cell -> target.canWrite(cell) && target.canExcavate(cell))
+                    && piece.ground().stream().allMatch(cell -> target.canWrite(cell) && target.existing(cell) == Existing.NATURAL_GROUND)
                     && piece.clearance().stream().allMatch(cell -> target.canWrite(cell)
                     && (target.existing(cell) == Existing.AIR || target.existing(cell) == Existing.VEGETATION))
                     && piece.blocks().stream().allMatch(change -> target.canWrite(change.position())
-                    && (piece.ground().contains(change.position()) || piece.clearance().contains(change.position()))
+                    && (piece.ground().contains(change.position()) || piece.clearance().contains(change.position()) || piece.excavation().contains(change.position()))
                     && (!writes.containsKey(change.position()) || writes.get(change.position()).equals(change)));
             if (safe) {
                 accepted++;

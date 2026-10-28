@@ -24,6 +24,11 @@ public final class SurfaceLayout {
 
     public List<SurfacePiece> plan(List<RegionGraph> graphs, int chunkX, int chunkZ, long seed,
                                    SurfaceConfig config, SurfaceSampler source) {
+        return plan(graphs, chunkX, chunkZ, seed, config, source, true);
+    }
+
+    public List<SurfacePiece> plan(List<RegionGraph> graphs, int chunkX, int chunkZ, long seed,
+                                   SurfaceConfig config, SurfaceSampler source, boolean crossingsEnabled) {
         int minX = chunkX * 16;
         int minZ = chunkZ * 16;
         Set<Point> geometry = geometry(graphs, minX - 2, minZ - 2, minX + 17, minZ + 17);
@@ -31,8 +36,15 @@ public final class SurfaceLayout {
         Map<Point, SurfaceSampler.Column> columns = new HashMap<>();
         SurfaceSampler sampler = (x, z) -> columns.computeIfAbsent(new Point(x, z), point -> terrain.sample(x, z));
         List<SurfacePiece> pieces = new ArrayList<>();
+        List<SurfacePiece> crossings = crossingsEnabled
+                ? SurfaceCrossings.plan(geometry, sampler, chunkX, chunkZ, seed, config) : List.of();
+        Set<Point> reserved = new java.util.HashSet<>();
+        crossings.forEach(piece -> {
+            java.util.stream.Stream.of(piece.ground(), piece.clearance(), piece.excavation()).flatMap(List::stream)
+                    .forEach(cell -> reserved.add(new Point(cell.x(), cell.z())));
+        });
         for (Point point : geometry) {
-            if (!owned(point.x(), point.z(), chunkX, chunkZ)) {
+            if (reserved.contains(point) || !owned(point.x(), point.z(), chunkX, chunkZ)) {
                 continue;
             }
             var column = sampler.sample(point.x(), point.z());
@@ -76,6 +88,9 @@ public final class SurfaceLayout {
                         station(pieces, node, geometry, sampler, config, seed, chunkX, chunkZ);
                     }
                 });
+        pieces.removeIf(piece -> java.util.stream.Stream.of(piece.ground(), piece.clearance()).flatMap(List::stream)
+                .anyMatch(cell -> reserved.contains(new Point(cell.x(), cell.z()))));
+        pieces.addAll(crossings);
         return List.copyOf(pieces);
     }
 
@@ -214,5 +229,5 @@ public final class SurfaceLayout {
         return Math.floorDiv(x, 16) == chunkX && Math.floorDiv(z, 16) == chunkZ;
     }
 
-    private record Point(int x, int z) { }
+    record Point(int x, int z) { }
 }

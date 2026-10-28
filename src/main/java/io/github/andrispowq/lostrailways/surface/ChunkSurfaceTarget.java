@@ -11,7 +11,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import java.util.Set;
 import java.util.function.Predicate;
 
-/** Deliberately narrow replacement whitelist: no excavation, fluids, trees, ores, or block entities. */
+/** Deliberately narrow replacement whitelist: only explicit tunnel cells may excavate stable natural terrain. */
 public final class ChunkSurfaceTarget implements SurfacePlacement.Target {
     private final java.util.List<BlockPos> writtenPositions = new java.util.ArrayList<>();
     private final ChunkAccess chunk;
@@ -47,6 +47,13 @@ public final class ChunkSurfaceTarget implements SurfacePlacement.Target {
     }
 
     @Override
+    public boolean canExcavate(SurfacePiece.Cell cell) {
+        if (existing(cell) != SurfacePlacement.Existing.NATURAL_GROUND) return false;
+        var state = chunk.getBlockState(pos(cell));
+        return !state.is(Blocks.SAND) && !state.is(Blocks.GRAVEL) && !state.is(Blocks.MUD);
+    }
+
+    @Override
     public void write(SurfacePiece.Change change) {
         if (!canWrite(change.position())) throw new IllegalArgumentException("Cross-chunk or protected surface write");
         chunk.setBlockState(pos(change.position()), state(change), 2);
@@ -57,6 +64,7 @@ public final class ChunkSurfaceTarget implements SurfacePlacement.Target {
 
     public static BlockState state(SurfacePiece.Change change) {
         return switch (change.material()) {
+            case AIR -> Blocks.AIR.defaultBlockState();
             case GRAVEL -> Blocks.GRAVEL.defaultBlockState();
             case COBBLE -> Blocks.COBBLESTONE.defaultBlockState();
             case MOSSY_COBBLE -> Blocks.MOSSY_COBBLESTONE.defaultBlockState();

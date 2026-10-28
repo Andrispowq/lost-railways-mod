@@ -2,9 +2,8 @@
 
 A Minecraft Java 26.3 Fabric mod about discovering, restoring, and reusing abandoned railways.
 
-**Status: Phase E, surface biome expansion.** Minecart improvements, deterministic networks, abandoned tracks,
-small stations, and junctions are implemented for new plains, forest, and taiga terrain. Broader biome coverage,
-tunnels/bridges, and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
+**Status: Phase E, small bridges and tunnels.** Minecart improvements, deterministic networks, abandoned tracks,
+small stations, and junctions are implemented for new plains, forest, and taiga terrain, with sparse desert, jungle-edge, and swamp-edge routes. Longer crossings, underground branches, and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
 
 ## Development
 
@@ -153,7 +152,7 @@ All blocks are vanilla. Placement skips fluids, trees, block entities, ores, dee
 and chunks within a conservative one-chunk buffer of structure references. Whole station templates
 are rejected on conflicts. Later world-generation features cannot overwrite generated railway cells;
 players can freely repair, replace, and remove them. Gaps across unsuitable terrain are intentional:
-bridges, tunnels, and extensive earthworks are outside this phase.
+longer bridges, underground branches, and extensive earthworks remain future work; see the bounded crossings below.
 
 Optional configuration for new surface snapshots:
 
@@ -242,7 +241,7 @@ Existing planner and surface snapshots stay unchanged, so existing worlds do **n
 start generating taiga railways. Use a new world to try the expansion. If your instance config explicitly
 provides a `planner.biomeRules` map, add the taiga rule shown above before creating that world: explicit
 maps replace defaults. Taiga styling takes precedence over forest/plains when tags overlap; routing
-exclusions still win. Bridges, tunnels, and underground branches remain later Phase E iterations.
+exclusions still win. Bounded bridges and tunnels are described below; underground branches remain a later Phase E iteration.
 
 
 ### Desert, jungle, and swamp expansion
@@ -266,3 +265,28 @@ is swamp, jungle, desert, taiga, forest, plains; routing exclusions always win. 
 never generate standalone stations, even if a custom routing rule permits station candidates.
 Existing snapshots and explicit config rule maps are unchanged: use a new world and add the rules
 above if your config supplies its own map. No new mountain, ocean, or underground generation is enabled.
+
+
+### Small abandoned bridges and tunnels
+
+New worlds can now replace short obstacles on straight planned routes with a simple crossing:
+
+- **Bridges:** a three-block-wide wooden deck between level banks, with 2–6 interior blocks and a
+  2–6-block terrain drop. Biome-appropriate wood, broken fence rails, and deterministic missing deck
+  sections/rails keep them abandoned. Rails are never placed over a missing deck section. Water below
+  the deck is left alone; water intersecting the footprint rejects the entire bridge.
+- **Tunnels:** a one-block-wide passage with three blocks of headroom through a 4–6-block-high ridge,
+  again limited to 2–6 interior blocks. Cobblestone floors, weathered masonry walls/roof, simple timber
+  or sandstone entrance supports, and missing rails use vanilla blocks only.
+
+Both ends, level approaches, and the full three-block-wide safety footprint must fit suitable terrain.
+The whole template is owned by one chunk: obstacles straddling chunk borders remain gaps. Curves,
+junctions, biome transitions, large spans, and excluded river/ocean/mountain biomes do not become
+crossings. Tunnels require stable natural terrain throughout their walls and roof: caves, loose sand or
+gravel, fluids, ores, deepslate, roots, trees, and protected blocks abort the entire piece. Existing
+structure buffers, minimum height, and new-terrain-only rules still apply. Rejected crossings place no
+partial supports and do not fall back to carving a route through the obstacle.
+
+New surface snapshots store `crossingsEnabled: true`. Older snapshots without this field are read as
+`false` without rewriting them, preserving previous layouts. Use a fresh world to try these crossings;
+there is no automatic retrofit or migration. Underground destination branches remain later Phase E work.

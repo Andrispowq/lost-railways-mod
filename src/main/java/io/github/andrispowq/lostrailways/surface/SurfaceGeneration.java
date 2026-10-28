@@ -75,7 +75,7 @@ public final class SurfaceGeneration {
                     : world.surface().styles().getOrDefault(biome, SurfaceStyle.EXCLUDED);
             return new SurfaceSampler.Column(y, style);
         };
-        var pieces = new SurfaceLayout().plan(graphs, cx, cz, context.level().getSeed(), world.surface().config(), sampler);
+        var pieces = new SurfaceLayout().plan(graphs, cx, cz, context.level().getSeed(), world.surface().config(), sampler, world.surface().crossingsEnabled());
         var target = new ChunkSurfaceTarget(chunk, world.surface().config().minimumRailY(), context.level().getWorldBorder()::isWithinBounds);
         var result = new SurfacePlacement().place(pieces, target);
         if (result.blocks() > 0) {

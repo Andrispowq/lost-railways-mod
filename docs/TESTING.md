@@ -130,3 +130,19 @@ seam, and normal-world order tests continue to run.
 For manual coverage, explore new-world desert corridors, jungle fringes, and dry swamp/mangrove edges.
 Repair gaps and ride transitions; check that trees/roots and water stay intact. No desert/jungle stations
 are expected until settlement-aware placement is implemented. Large bridges/tunnels remain later work.
+
+
+## Phase E: small crossings
+
+`./gradlew build` includes short bridge/tunnel fixtures, deterministic abandonment, deck/rail consistency,
+length/depth limits, flat approaches, negative-coordinate north/south orientation, chunk-boundary
+rejection, and legacy snapshot behavior. Minecraft integration tests place complete templates on real
+ProtoChunks, verify level rails and three-block tunnel headroom, preserve water below bridges, and reject
+entire pieces on chest/spawner/ore/deepslate/log/fluid/loose-material conflicts. A cavity in the tunnel
+wall also rejects excavation. Existing native-world forward/reverse generation tests remain active.
+
+Manual playtest on a new disposable world: find short depressions/ridges along a planned route; inspect
+abutments, support frames, and damage. Repair the deck/rails, ride through from both ends, save/restart,
+and check that player repairs persist. Large spans, chunk-border obstacles, rivers/oceans, and protected
+terrain intentionally remain gaps. The automated fixtures are not a broad multi-seed appearance or
+performance benchmark.

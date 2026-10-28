@@ -117,6 +117,12 @@ public final class SurfaceGameTests {
             var first = SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults());
             var reloaded = SurfaceSettings.loadOrCreate(path, helper.getLevel(), new SurfaceConfig(30, 0.3, 0.1));
             helper.assertTrue(first.equals(reloaded), "Surface tuning and styles must remain frozen after restart");
+            helper.assertTrue(first.crossingsEnabled(), "New snapshots enable bounded crossings");
+            var legacy = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+            legacy.remove("crossingsEnabled");
+            Files.writeString(path, legacy.toString());
+            helper.assertTrue(!SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults()).crossingsEnabled()
+                    && Files.readString(path).equals(legacy.toString()), "Old snapshots retain their layout without rewriting");
             var future = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
             future.addProperty("version", 2);
             Files.writeString(path, future.toString());
@@ -241,6 +247,52 @@ public final class SurfaceGameTests {
             Files.deleteIfExists(directory);
         }
         helper.succeed();
+    }
+
+    @GameTest
+    public void bridgesAndTunnelsPlaceAtomicallyAndProtectObstacles(GameTestHelper helper) {
+        for (int height : List.of(60, 68)) {
+            var pieces = new SurfaceLayout().plan(List.of(graph(false, List.of(p(0, 8), p(15, 8)))), 0, 0, 1, INTACT,
+                    (x, z) -> new SurfaceSampler.Column(x >= 4 && x <= 7 ? height : 64, SurfaceStyle.PLAINS));
+            var crossing = pieces.stream().filter(piece -> piece.kind() == SurfacePiece.Kind.BRIDGE
+                    || piece.kind() == SurfacePiece.Kind.TUNNEL).findFirst().orElseThrow();
+            var clean = crossingTerrain(helper, height);
+            if (height < 64) clean.setBlockState(new BlockPos(5, 61, 8), Blocks.WATER.defaultBlockState());
+            var result = new SurfacePlacement().place(List.of(crossing), new ChunkSurfaceTarget(clean, 12, position -> true));
+            helper.assertTrue(result.acceptedPieces() == 1, "Safe crossing must place as a complete piece");
+            helper.assertTrue(BaseRailBlock.isRail(clean.getBlockState(new BlockPos(5, 64, 8))), "Crossing rails stay level");
+            helper.assertTrue(clean.getBlockState(new BlockPos(5, 65, 8)).isAir(), "Tunnel/bridge has head clearance");
+            if (height > 64) helper.assertTrue(clean.getBlockState(new BlockPos(5, 66, 8)).isAir()
+                    && clean.getBlockState(new BlockPos(5, 67, 8)).is(Blocks.CRACKED_STONE_BRICKS), "Tunnel has three-block clearance and a stable roof");
+            if (height < 64) helper.assertTrue(clean.getBlockState(new BlockPos(5, 61, 8)).is(Blocks.WATER), "Bridge must not drain water below its deck");
+            for (var obstacle : List.of(Blocks.CHEST, Blocks.SPAWNER, Blocks.DIAMOND_ORE, Blocks.DEEPSLATE,
+                    Blocks.WATER, Blocks.OAK_LOG, Blocks.SAND, Blocks.GRAVEL)) {
+                var chunk = crossingTerrain(helper, height);
+                var conflict = new BlockPos(5, 64, 8);
+                chunk.setBlockState(conflict, obstacle.defaultBlockState());
+                var rejected = new SurfacePlacement().place(List.of(crossing), new ChunkSurfaceTarget(chunk, 12, position -> true));
+                helper.assertTrue(rejected.blocks() == 0 && rejected.rejectedPieces() == 1, "One conflict must reject the entire crossing");
+                helper.assertTrue(chunk.getBlockState(conflict).is(obstacle), "Conflicting block must remain untouched");
+                helper.assertTrue(chunk.getBlockState(new BlockPos(3, 63, 8)).is(Blocks.GRASS_BLOCK), "No partial abutment placement");
+            }
+            if (height > 64) {
+                var cave = crossingTerrain(helper, height);
+                cave.setBlockState(new BlockPos(5, 65, 9), Blocks.AIR.defaultBlockState());
+                helper.assertTrue(new SurfacePlacement().place(List.of(crossing), new ChunkSurfaceTarget(cave, 12, position -> true)).blocks() == 0,
+                        "Tunnel must not open into existing caves");
+            }
+        }
+        helper.succeed();
+    }
+
+    private static ProtoChunk crossingTerrain(GameTestHelper helper, int interiorHeight) {
+        var chunk = terrain(helper);
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
+            int height = x >= 4 && x <= 7 ? interiorHeight : 64;
+            for (int y = 58; y <= 70; y++) chunk.setBlockState(new BlockPos(x, y, z),
+                    (y >= height ? Blocks.AIR : y == height - 1 ? Blocks.GRASS_BLOCK : Blocks.STONE).defaultBlockState());
+        }
+        return chunk;
     }
 
     private static ProtoChunk terrain(GameTestHelper helper) {

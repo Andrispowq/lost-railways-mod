@@ -271,3 +271,32 @@ coarse planner routes may become discontinuous here. Sampling uses immutable ter
 chunk requests. Normal biome conflict protections and deterministic generation order remain intact.
 Style precedence is swamp/jungle/desert/taiga/forest/plains; routing exclusions independently win.
 Settlement stations, large bridges/tunnels, and underground branches remain subsequent work.
+
+
+## Phase E — Bounded bridges and tunnels
+
+Derive crossings from merged straight route geometry before ordinary surface columns. Require two
+level abutments, level approaches, a uniform allowed biome style, and 2–6 interior columns; keep the
+entire three-wide validation footprint in one chunk. Bridges span terrain drops of 2–6 blocks. Tunnels
+cross ridges 4–6 blocks above the route, with one-wide/three-high passage, stable lined walls/roof,
+and modest entrance frames. No curve/junction crossing, multi-chunk transaction, river/ocean biome
+exception, distant chunk loading, or underground destination routing is introduced.
+
+Reserve candidate footprints before normal surface layout; atomic rejection leaves a gap rather than
+falling back to partial excavation. Preflight all supports, clearance, and excavation against original
+terrain. Explicit excavation cells require the narrow existing natural-ground whitelist minus sand,
+gravel, and mud. Caves/air, fluids, block entities, ores, deepslate, trees, and structure conflicts reject
+the full piece. Only tunnels can write air; those carved cells and the lining use the same persistent
+generation protection as rails, so later decoration cannot refill the passage. Players remain free to
+edit it. Bridges never remove water beneath the footprint. Seeded deck gaps suppress their rails;
+remaining rails and fences are independently weathered. No new powered rail appears in crossings.
+
+Freeze activation in the surface snapshot with crossingsEnabled. Newly created snapshots enable it;
+missing fields in older snapshots mean false and are never rewritten. Strict boolean validation rejects
+malformed values. Existing topology, surface styles, and generated chunks stay unchanged. Templates
+are small code-defined vanilla-block layouts rather than larger jigsaw structures. Broader spans and
+underground branches remain subsequent work.
+
+Validation: 46 unit tests, 22 dedicated-server GameTests, and the normal-world client suite passed.
+The client suite retains forward/reverse chunk-order comparisons. No Git operations were performed;
+CI picks up the expanded suites through its existing build/client tasks.
