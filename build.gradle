@@ -24,6 +24,20 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+loom {
+    splitEnvironmentSourceSets()
+    mods {
+        lost_railways {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+    runs {
+        client { runDir = 'run/client' }
+        server { runDir = 'run/server' }
+    }
+}
+
 fabricApi {
     configureTests {
         createSourceSet = true
@@ -32,13 +46,6 @@ fabricApi {
         enableClientGameTests = true
         // Accepted by the project owner for local and CI test servers on 2026-10-28.
         eula = true
-    }
-}
-
-loom {
-    runs {
-        client { runDir = 'run/client' }
-        server { runDir = 'run/server' }
     }
 }
 
@@ -61,5 +68,41 @@ processResources {
 publishing {
     publications {
         mavenJava(MavenPublication) { from components.java }
+    }
+}
+
+// Select a separate server suite/JVM for the real disabled config; avoid mutating globals in parallel GameTests.
+def vanillaMinecartTests = providers.gradleProperty('vanillaMinecartTests').map { it.toBoolean() }.orElse(false)
+tasks.named('processGametestResources') {
+    inputs.property 'vanillaMinecartTests', vanillaMinecartTests
+    filesMatching('fabric.mod.json') {
+        filter { line -> vanillaMinecartTests.get() ? line.replace('.MinecartGameTests', '.VanillaMinecartGameTests') : line }
+    }
+}
+
+def gameTestDirectory = layout.buildDirectory.dir(vanillaMinecartTests.get() ? 'run/vanillaGameTest' : 'run/gameTest').get().asFile
+loom.runs.named('gameTest') {
+    runDir = project.relativePath(gameTestDirectory)
+}
+
+tasks.named('runGameTest') {
+    def reportFile = layout.buildDirectory.file("test-results/${vanillaMinecartTests.get() ? 'vanillaGameTest' : 'gameTest'}/results.xml").get().asFile
+    systemProperty 'fabric-api.gametest.report-file', reportFile.absolutePath
+    doFirst {
+        reportFile.parentFile.mkdirs()
+        def configFile = new File(gameTestDirectory, 'config/lost_railways.json')
+        configFile.parentFile.mkdirs()
+        configFile.text = groovy.json.JsonOutput.toJson([schemaVersion: 1, minecartOverhaulEnabled: !vanillaMinecartTests.get()])
+        new File(gameTestDirectory, 'eula.txt').text = 'eula=true\n'
+    }
+}
+
+// Separate process/config for generation-off validation; never mutate a running server's global settings.
+tasks.named('runClientGameTest') {
+    doFirst {
+        def configFile = layout.buildDirectory.file('run/clientGameTest/config/lost_railways.json').get().asFile
+        configFile.parentFile.mkdirs()
+        configFile.text = groovy.json.JsonOutput.toJson([schemaVersion: 1,
+                generationEnabled: !providers.gradleProperty('surfaceGenerationDisabled').map { it.toBoolean() }.orElse(false).get()])
     }
 }

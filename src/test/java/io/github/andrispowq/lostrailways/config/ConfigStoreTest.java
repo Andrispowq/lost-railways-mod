@@ -53,4 +53,69 @@ class ConfigStoreTest {
             assertEquals(content, Files.readString(path));
         }
     }
+    @Test
+    void oldConfigFilesGainMinecartDefaultsWithoutRewriting() throws IOException {
+        Path path = directory.resolve("config.json");
+        String oldConfig = "{\"schemaVersion\":1,\"minecartOverhaulEnabled\":false}";
+        Files.writeString(path, oldConfig);
+        ModConfig config = ConfigStore.load(path);
+        assertFalse(config.minecartOverhaulEnabled());
+        assertEquals(MinecartConfig.defaults(), config.minecarts());
+        assertEquals(PlannerConfig.defaults(), config.planner());
+        assertEquals(oldConfig, Files.readString(path));
+    }
+
+    @Test
+    void supportsPartialMinecartSettings() throws IOException {
+        Path path = directory.resolve("config.json");
+        Files.writeString(path, "{\"minecarts\":{\"poweredAcceleration\":12,\"sustainedPoweredTicks\":100}}");
+        MinecartConfig config = ConfigStore.load(path).minecarts();
+        assertEquals(12, config.poweredAcceleration());
+        assertEquals(100, config.sustainedPoweredTicks());
+        assertEquals(35, config.sustainedSpeed());
+    }
+
+    @Test
+    void rejectsUnsafeOrMalformedMinecartSettingsWithoutOverwriting() throws IOException {
+        Path path = directory.resolve("config.json");
+        for (String fields : new String[]{"\"ordinarySpeed\":0", "\"poweredSpeed\":10", "\"sustainedSpeed\":61",
+                "\"curveSpeed\":17", "\"poweredAcceleration\":-1", "\"sustainedPoweredTicks\":1.5",
+                "\"ordinarySpeed\":\"NaN\"", "\"ordinarySpeed\":1e999", "\"slopeSpeed\":null"}) {
+            String content = "{\"minecarts\":{" + fields + "}}";
+            Files.writeString(path, content);
+            assertThrows(RuntimeException.class, () -> ConfigStore.load(path));
+            assertEquals(content, Files.readString(path));
+        }
+    }
+    @Test
+    void plannerDefaultsMigrateAndPartialSettingsAreValidated() throws IOException {
+        Path path = directory.resolve("config.json");
+        Files.writeString(path, "{\"planner\":{\"regionSizeChunks\":64}}");
+        assertEquals(64, ConfigStore.load(path).planner().regionSizeChunks());
+        assertEquals(PlannerConfig.defaults().biomeRules(), ConfigStore.load(path).planner().biomeRules());
+        for (String fields : new String[]{"\"regionSizeChunks\":65", "\"regionSizeChunks\":128.5",
+                "\"boundaryConnectionChance\":2", "\"maximumSlope\":0", "\"biomeRules\":{}", "\"biomeRules\":null"}) {
+            String content = "{\"planner\":{" + fields + "}}";
+            Files.writeString(path, content);
+            assertThrows(RuntimeException.class, () -> ConfigStore.load(path));
+            assertEquals(content, Files.readString(path));
+        }
+    }
+
+    @Test
+    void surfaceSettingsMigrateAndRejectUnsafeDepthOrDamage() throws IOException {
+        Path path = directory.resolve("config.json");
+        Files.writeString(path, "{}");
+        assertEquals(SurfaceConfig.defaults(), ConfigStore.load(path).surface());
+        Files.writeString(path, "{\"surface\":{\"missingRailChance\":0.3}}");
+        assertEquals(0.3, ConfigStore.load(path).surface().missingRailChance());
+        for (String fields : new String[]{"\"minimumRailY\":-1", "\"minimumRailY\":12.5", "\"missingRailChance\":0.9",
+                "\"missingBedChance\":0.9", "\"missingRailChance\":1e999", "\"missingRailChance\":\"0.2\""}) {
+            String content = "{\"surface\":{" + fields + "}}";
+            Files.writeString(path, content);
+            assertThrows(RuntimeException.class, () -> ConfigStore.load(path));
+            assertEquals(content, Files.readString(path));
+        }
+    }
+
 }

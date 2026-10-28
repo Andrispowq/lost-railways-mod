@@ -25,6 +25,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Build, unit tests, and dedicated-server GameTests
         run: ./gradlew --no-daemon build
+      - name: Disabled-overhaul vanilla regression
+        run: ./gradlew --no-daemon runGameTest -PvanillaMinecartTests=true
       - uses: actions/upload-artifact@v7
         with:
           name: mod-jars
@@ -39,6 +41,10 @@ jobs:
             build/test-results/
             build/run/**/logs/
   client:
+    strategy:
+      fail-fast: false
+      matrix:
+        surface-disabled: [false, true]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -51,14 +57,15 @@ jobs:
       - name: Install virtual display and software renderer
         run: sudo bash scripts/install-client-test-deps.sh
       - name: Client world smoke test
-        run: bash scripts/run-client-smoke-test.sh
+        run: bash scripts/run-client-smoke-test.sh -PsurfaceGenerationDisabled=${{ matrix.surface-disabled }}
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: client-test-evidence
+          name: client-test-evidence-surface-disabled-${{ matrix.surface-disabled }}
           path: |
             build/diagnostics/
             build/run/**/crash-reports/
             build/run/**/screenshots/
+            build/run/**/surface-proof.json
             build/run/**/logs/
             build/reports/
