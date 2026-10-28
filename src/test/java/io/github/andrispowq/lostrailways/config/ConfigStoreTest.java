@@ -53,4 +53,37 @@ class ConfigStoreTest {
             assertEquals(content, Files.readString(path));
         }
     }
+    @Test
+    void oldConfigFilesGainMinecartDefaultsWithoutRewriting() throws IOException {
+        Path path = directory.resolve("config.json");
+        String oldConfig = "{\"schemaVersion\":1,\"minecartOverhaulEnabled\":false}";
+        Files.writeString(path, oldConfig);
+        ModConfig config = ConfigStore.load(path);
+        assertFalse(config.minecartOverhaulEnabled());
+        assertEquals(MinecartConfig.defaults(), config.minecarts());
+        assertEquals(oldConfig, Files.readString(path));
+    }
+
+    @Test
+    void supportsPartialMinecartSettings() throws IOException {
+        Path path = directory.resolve("config.json");
+        Files.writeString(path, "{\"minecarts\":{\"poweredAcceleration\":12,\"sustainedPoweredTicks\":100}}");
+        MinecartConfig config = ConfigStore.load(path).minecarts();
+        assertEquals(12, config.poweredAcceleration());
+        assertEquals(100, config.sustainedPoweredTicks());
+        assertEquals(35, config.sustainedSpeed());
+    }
+
+    @Test
+    void rejectsUnsafeOrMalformedMinecartSettingsWithoutOverwriting() throws IOException {
+        Path path = directory.resolve("config.json");
+        for (String fields : new String[]{"\"ordinarySpeed\":0", "\"poweredSpeed\":10", "\"sustainedSpeed\":61",
+                "\"curveSpeed\":17", "\"poweredAcceleration\":-1", "\"sustainedPoweredTicks\":1.5",
+                "\"ordinarySpeed\":\"NaN\"", "\"ordinarySpeed\":1e999", "\"slopeSpeed\":null"}) {
+            String content = "{\"minecarts\":{" + fields + "}}";
+            Files.writeString(path, content);
+            assertThrows(RuntimeException.class, () -> ConfigStore.load(path));
+            assertEquals(content, Files.readString(path));
+        }
+    }
 }

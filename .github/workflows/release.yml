@@ -33,6 +33,10 @@ jobs:
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: ./gradlew --no-daemon -Pmod_version="$RELEASE_VERSION" build
+      - name: Disabled-overhaul vanilla regression
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: ./gradlew --no-daemon -Pmod_version="$RELEASE_VERSION" runGameTest -PvanillaMinecartTests=true
       - name: Validate candidate client
         env:
           RELEASE_VERSION: ${{ inputs.version }}

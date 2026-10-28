@@ -4,14 +4,28 @@
   "version": "${version}",
   "name": "Lost Railways",
   "description": "Restore abandoned railways and make minecarts useful for repeat travel.",
-  "authors": ["Andrispowq"],
-  "contact": {"sources": "https://github.com/Andrispowq/lost-railways-mod"},
+  "authors": [
+    "Andrispowq"
+  ],
+  "contact": {
+    "sources": "https://github.com/Andrispowq/lost-railways-mod"
+  },
   "environment": "*",
-  "entrypoints": {"main": ["io.github.andrispowq.lostrailways.LostRailwaysMod"]},
+  "entrypoints": {
+    "main": [
+      "io.github.andrispowq.lostrailways.LostRailwaysMod"
+    ],
+    "client": [
+      "io.github.andrispowq.lostrailways.LostRailwaysClient"
+    ]
+  },
   "depends": {
     "fabricloader": ">=0.20.1",
     "minecraft": "26.3",
     "java": ">=25",
     "fabric-api": ">=0.165.0+26.3"
-  }
+  },
+  "mixins": [
+    "lost_railways.mixins.json"
+  ]
 }

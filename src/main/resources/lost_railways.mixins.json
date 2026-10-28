@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "io.github.andrispowq.lostrailways.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "AbstractMinecartMixin",
+    "NewMinecartBehaviorMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

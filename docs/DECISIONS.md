@@ -89,3 +89,44 @@ syntax checks passed. GitHub's x86-64 runner result remains for the owner to ver
 The finalized launcher also passed a second, warm-cache Linux ARM64 run in 1m 37s, with software
 Vulkan selected, a rendered-world screenshot captured, and no runtime-directory warning. Local
 evidence is retained under ignored `build/client-ci-proof/`; the two test containers were removed.
+
+## 2026-10-28 — Phase B minecart movement
+
+The owner confirmed Phase A CI is green and selected the feature branch. Use Minecraft 26.3's
+`NewMinecartBehavior` for the enabled overhaul, including its rail-by-rail collision stepping and
+`ClientboundMoveMinecartPacket` interpolation. Do not retrofit large per-tick displacements into
+`OldMinecartBehavior`, and do not change world feature flags. Disabled mode leaves vanilla's selection
+untouched. The server owns all numeric tuning; a versioned configuration-phase payload synchronizes
+only the enabled flag before cart construction. Require capable clients when the overhaul is enabled.
+Reset client mode when connecting/disconnecting so joining a different server cannot inherit it.
+
+Two required Mixins select vanilla's movement mode and apply the speed policy. The latter replaces
+the maximum-speed lookup at method entry because its original gamerule is absent in non-experimental
+worlds. It adjusts powered acceleration, enforces a cap after each rail calculation (vanilla clamps
+only the first iteration), and guards the upcoming collision/rail-query area using non-loading chunk
+lookups. It does not replace inventory operations, collision code, entity ticking, rail pathfinding,
+or interpolation. Injection matches are required so incompatible game updates fail clearly.
+
+Defaults: ordinary 16, powered 28, sustained 35, curves 8, slopes 12 blocks/s; powered acceleration
+24 blocks/s²; 60 consecutive moving powered ticks to ramp the powered cap to sustained. Vanilla drag
+and water penalties remain. Powered time resets on any non-powered rail, including gaps traversed
+within one tick; it is transient, not save data. A bounded 60 blocks/s configuration ceiling constrains
+rail iterations and chunk checks. The unloaded-chunk guard stops rather than force-loads; restarting
+may require a push after chunks load. These are conservative initial tuning decisions, subject to
+playtesting. Config schema 1 remains backward compatible through defaults for missing `minecarts` fields.
+
+Test the disabled mode in its own JVM with a real config file instead of mutating global settings
+while GameTests execute in parallel. The dedicated connection/reconnect client tests supplement
+headless server tests; multi-client latency/load and broader mod compatibility remain manual release
+checks in `docs/TESTING.md`.
+
+Local verification: `./gradlew build` passed with 14 JUnit tests and 10 enabled server GameTests
+(including framework/bootstrap checks). The isolated disabled suite passed all 3 GameTests.
+The native macOS client suite passed single-player and dedicated-server high-speed rides, matching
+client movement selection, stopped-position convergence, and reconnect synchronization. The packaged
+JAR includes the client initializer and required Mixins and excludes the GameTest classes.
+
+The same client suite also passed in the local Ubuntu 24.04 ARM64 Docker environment with Xvfb and
+Mesa software rendering in 5m 42s. Logs and screenshots are retained under ignored
+`build/phase-b-evidence/linux/`. This verifies the shared CI launcher locally; GitHub's x86-64 run
+remains for the owner to check after committing and pushing.

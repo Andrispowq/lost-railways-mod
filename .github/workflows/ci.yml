@@ -25,6 +25,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Build, unit tests, and dedicated-server GameTests
         run: ./gradlew --no-daemon build
+      - name: Disabled-overhaul vanilla regression
+        run: ./gradlew --no-daemon runGameTest -PvanillaMinecartTests=true
       - uses: actions/upload-artifact@v7
         with:
           name: mod-jars

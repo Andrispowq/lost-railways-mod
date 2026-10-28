@@ -37,7 +37,27 @@ public final class ConfigStore {
         return new ModConfig(schema,
                 readBoolean(json, "generationEnabled", defaults.generationEnabled()),
                 readBoolean(json, "minecartOverhaulEnabled", defaults.minecartOverhaulEnabled()),
-                readBoolean(json, "elytraBalanceEnabled", defaults.elytraBalanceEnabled()));
+                readBoolean(json, "elytraBalanceEnabled", defaults.elytraBalanceEnabled()),
+                readMinecartConfig(json));
+    }
+
+    private static MinecartConfig readMinecartConfig(JsonObject json) {
+        JsonObject settings = GSON.toJsonTree(MinecartConfig.defaults()).getAsJsonObject();
+        if (json.has("minecarts")) {
+            JsonObject overrides = json.getAsJsonObject("minecarts");
+            for (String key : settings.keySet()) {
+                if (overrides.has(key)) {
+                    if (!overrides.get(key).isJsonPrimitive() || !overrides.getAsJsonPrimitive(key).isNumber()) {
+                        throw new IllegalArgumentException("minecarts." + key + " must be a number");
+                    }
+                    if (key.equals("sustainedPoweredTicks")) {
+                        overrides.get(key).getAsBigDecimal().intValueExact();
+                    }
+                    settings.add(key, overrides.get(key));
+                }
+            }
+        }
+        return GSON.fromJson(settings, MinecartConfig.class);
     }
 
     private static boolean readBoolean(JsonObject json, String name, boolean fallback) {
