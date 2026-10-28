@@ -1,0 +1,37 @@
+# Gradle and Fabric Loom caches / build outputs
+.gradle/
+.loom-cache/
+build/
+out/
+*.class
+
+# Minecraft development instances (worlds, logs, configs, downloaded mods)
+/run/
+/runClient/
+/runServer/
+/runs/
+
+# IDE-local settings
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+/bin/
+
+# Operating-system metadata
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# Keep Gradle wrapper files, source assets, and publishing metadata versioned.
+# Deliberately do not ignore all JARs or ZIPs: the wrapper JAR belongs in Git.
