@@ -24,7 +24,7 @@ public final class SurfacePlacement {
         int accepted = 0;
         List<SurfacePiece> ordered = new ArrayList<>(pieces);
         ordered.sort(Comparator.comparingInt(piece -> switch (piece.kind()) {
-            case BRIDGE, TUNNEL -> 0;
+            case BRIDGE, TUNNEL, CAVE_BRANCH, MINESHAFT_BRANCH -> 0;
             case TRACK -> 1;
             case STATION -> 2;
             case JUNCTION -> 3;

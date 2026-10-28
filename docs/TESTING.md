@@ -146,3 +146,19 @@ abutments, support frames, and damage. Repair the deck/rails, ride through from 
 and check that player repairs persist. Large spans, chunk-border obstacles, rivers/oceans, and protected
 terrain intentionally remain gaps. The automated fixtures are not a broad multi-seed appearance or
 performance benchmark.
+
+
+## Phase E: local branches
+
+The standard build tests seeded rarity over 1,000 suitable fixtures, repeatability, curved junctions,
+gentle descent, real roofed cave destinations, absence of phantom targets, protected biome/block
+rejection, and mineshaft approach limits. A low fixture reaches a support exactly at Y=12; no cell may
+fall below it. Minecraft chunk tests place a complete branch, reject deepslate/ore/fluid/log/sculk/loose
+material/block-entity conflicts atomically, and respect a raised configured minimum. Structure tests
+resolve native mineshaft pieces, protect their bounds/support columns, and reject unresolved or unrelated
+structure references. Snapshot tests retain old behavior and freeze special underground biome masks.
+
+The normal-world client tests continue to compare opposite chunk-generation orders and validate the
+generation-off switch. Before release, manually inspect multiple seeds for branch frequency, repair the
+junction and missing rails, ride both directions, and verify that cave/mine approaches remain subtle.
+These short approaches are not long underground networks or guaranteed mineshaft entrances.

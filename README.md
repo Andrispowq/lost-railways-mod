@@ -2,8 +2,8 @@
 
 A Minecraft Java 26.3 Fabric mod about discovering, restoring, and reusing abandoned railways.
 
-**Status: Phase E, small bridges and tunnels.** Minecart improvements, deterministic networks, abandoned tracks,
-small stations, and junctions are implemented for new plains, forest, and taiga terrain, with sparse desert, jungle-edge, and swamp-edge routes. Longer crossings, underground branches, and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
+**Status: Phase E, local cave and mineshaft approaches.** Minecart improvements, deterministic networks, abandoned tracks,
+small stations, and junctions are implemented for new plains, forest, and taiga terrain, with sparse desert, jungle-edge, and swamp-edge routes. Longer crossings, deep underground routes, and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
 
 ## Development
 
@@ -152,7 +152,7 @@ All blocks are vanilla. Placement skips fluids, trees, block entities, ores, dee
 and chunks within a conservative one-chunk buffer of structure references. Whole station templates
 are rejected on conflicts. Later world-generation features cannot overwrite generated railway cells;
 players can freely repair, replace, and remove them. Gaps across unsuitable terrain are intentional:
-longer bridges, underground branches, and extensive earthworks remain future work; see the bounded crossings below.
+longer bridges, deep underground routes, and extensive earthworks remain future work; see the bounded crossings below.
 
 Optional configuration for new surface snapshots:
 
@@ -241,7 +241,7 @@ Existing planner and surface snapshots stay unchanged, so existing worlds do **n
 start generating taiga railways. Use a new world to try the expansion. If your instance config explicitly
 provides a `planner.biomeRules` map, add the taiga rule shown above before creating that world: explicit
 maps replace defaults. Taiga styling takes precedence over forest/plains when tags overlap; routing
-exclusions still win. Bounded bridges and tunnels are described below; underground branches remain a later Phase E iteration.
+exclusions still win. Bounded bridges and tunnels are described below; local cave and mineshaft approaches are described below.
 
 
 ### Desert, jungle, and swamp expansion
@@ -289,4 +289,37 @@ partial supports and do not fall back to carving a route through the obstacle.
 
 New surface snapshots store `crossingsEnabled: true`. Older snapshots without this field are read as
 `false` without rewriting them, preserving previous layouts. Use a fresh world to try these crossings;
-there is no automatic retrofit or migration. Underground destination branches remain later Phase E work.
+there is no automatic retrofit or migration. Longer underground descents remain future work.
+
+
+### Local cave and mineshaft branches
+
+New worlds can rarely gain a short descending spur from an ordinary rail on a planned surface route.
+A deterministic 8% of route-containing chunks are eligible for an attempt; most attempts still fail
+terrain checks. At most one branch is accepted per chunk, using at most four candidate origins and
+two directions. It is 4–10 blocks long and descends one block per three horizontal blocks (at most
+three blocks total). These are local entrances/approaches, not long descents to deep underground networks.
+
+Cave branches require an actual three-block-high air opening with a stable natural roof and floor,
+after passing through at least two terrain columns. Open sky does not count as a cave. Mineshaft
+approaches are rarer and require a resolved vanilla mineshaft structure nearby; they stop 5–8 blocks
+outside its horizontal footprint. They never enter corridors, place loot, or overwrite the mineshaft.
+The four-block protected footprint extends through every elevation to cover support pillars.
+All other structures keep the existing conservative chunk exclusion.
+
+Branches use vanilla rails, cobblestone supports, modest mossy lining, a vanilla curved junction, and
+missing rails. Every support, carved cell, wall, and roof must remain at or above the configured minimum
+(default Y=12); the lowest supported rail is therefore Y=13. Deepslate, ores, fluids, loose sand/gravel,
+roots, trees, chests, spawners, and other protected blocks reject the entire spur. Deep dark is always
+forbidden. `lost_railways:protected_underground` additionally protects lush and dripstone caves by default,
+and can include modded underground biomes. Existing routing exclusions still apply below ground.
+
+Branch attempts read only their owning new chunk plus structure-start metadata already required by
+Minecraft's generation pipeline. Unknown/unavailable structure references disable placement rather than
+load more chunks. Carved passage cells retain generation-only protection; players may freely repair or
+remove the result. `/lostrailways graph` still exports the macro network, not these local derived spurs.
+
+New surface snapshots freeze `branchesEnabled: true` and the protected underground biome set. Older
+snapshots without that flag remain branch-free and are not rewritten. Use a fresh world to try this
+addition. Reaching the preferred deep endpoints around Y=12–20 from ordinary high surface terrain
+requires a future longer-descent design; this bounded slice does not excavate such shafts.

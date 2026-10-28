@@ -16,6 +16,8 @@ import net.minecraft.world.level.levelgen.FlatLevelSource;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -55,12 +57,21 @@ public final class SurfaceGeneration {
 
         WorldGenRegion region = new WorldGenRegion(context.level(), cache, step, chunk);
         // Native TERRAIN dependencies already supply BIOMES for these neighbors. No extra chunk requests.
+        List<ChunkAccess> neighbors = new ArrayList<>();
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 ChunkAccess neighbor = region.getChunk(cx + dx, cz + dz, ChunkStatus.STRUCTURE_REFERENCES, false);
-                if (neighbor == null || structureConflict(neighbor)) return;
+                if (neighbor == null || (!world.surface().branchesEnabled() && structureConflict(neighbor))) return;
+                neighbors.add(neighbor);
             }
         }
+        BranchStructures structures = BranchStructures.inspect(neighbors, position -> {
+            int distance = chunk.getPos().getChessboardDistance(position.x(), position.z());
+            if (distance >= step.directDependencies().size()
+                    || !ChunkStatus.STRUCTURE_STARTS.isOrBefore(step.directDependencies().get(distance))) return null;
+            return region.getChunk(position.x(), position.z(), ChunkStatus.STRUCTURE_STARTS, false);
+        });
+        if (structures == null) return;
         var graphs = world.graphsForChunk(context.level(), cx, cz);
         var generator = context.generator();
         var random = context.level().getChunkSource().randomState();
@@ -76,7 +87,15 @@ public final class SurfaceGeneration {
             return new SurfaceSampler.Column(y, style);
         };
         var pieces = new SurfaceLayout().plan(graphs, cx, cz, context.level().getSeed(), world.surface().config(), sampler, world.surface().crossingsEnabled());
-        var target = new ChunkSurfaceTarget(chunk, world.surface().config().minimumRailY(), context.level().getWorldBorder()::isWithinBounds);
+        var target = new ChunkSurfaceTarget(chunk, world.surface().config().minimumRailY(), pos -> context.level().getWorldBorder().isWithinBounds(pos) && structures.allows(pos));
+        if (world.surface().branchesEnabled()) {
+            pieces = LocalBranches.add(pieces, target, cell -> {
+                String biome = biomes.getNoiseBiome(Math.floorDiv(cell.x(), 4), Math.floorDiv(cell.y(), 4), Math.floorDiv(cell.z(), 4))
+                        .unwrapKey().orElseThrow().identifier().toString();
+                var rule = world.settings().resolvedBiomes().get(biome);
+                return rule != null && rule.cost() > 0 && !world.surface().protectedUndergroundBiomes().contains(biome);
+            }, structures::near, cx, cz, context.level().getSeed());
+        }
         var result = new SurfacePlacement().place(pieces, target);
         if (result.blocks() > 0) {
             SurfaceProtection.remember(chunk, target.writtenPositions());

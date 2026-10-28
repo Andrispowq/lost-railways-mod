@@ -117,12 +117,18 @@ public final class SurfaceGameTests {
             var first = SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults());
             var reloaded = SurfaceSettings.loadOrCreate(path, helper.getLevel(), new SurfaceConfig(30, 0.3, 0.1));
             helper.assertTrue(first.equals(reloaded), "Surface tuning and styles must remain frozen after restart");
-            helper.assertTrue(first.crossingsEnabled(), "New snapshots enable bounded crossings");
+            helper.assertTrue(first.crossingsEnabled() && first.branchesEnabled(), "New snapshots enable bounded crossings and branches");
+            helper.assertTrue(first.protectedUndergroundBiomes().containsAll(List.of("minecraft:deep_dark", "minecraft:lush_caves", "minecraft:dripstone_caves")),
+                    "Special cave biomes are frozen as protected");
             var legacy = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
             legacy.remove("crossingsEnabled");
+            legacy.remove("branchesEnabled");
+            legacy.remove("protectedUndergroundBiomes");
             Files.writeString(path, legacy.toString());
             helper.assertTrue(!SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults()).crossingsEnabled()
                     && Files.readString(path).equals(legacy.toString()), "Old snapshots retain their layout without rewriting");
+            helper.assertTrue(!SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults()).branchesEnabled(),
+                    "Legacy snapshots do not gain branches");
             var future = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
             future.addProperty("version", 2);
             Files.writeString(path, future.toString());
@@ -283,6 +289,84 @@ public final class SurfaceGameTests {
             }
         }
         helper.succeed();
+    }
+
+    @GameTest
+    public void caveBranchesRespectDepthDeepslateAndAtomicRejection(GameTestHelper helper) {
+        var origin = new SurfacePiece.Cell(8, 20, 2);
+        var surface = List.of(new SurfacePiece(SurfacePiece.Kind.TRACK,
+                List.of(new SurfacePiece.Change(new SurfacePiece.Cell(8, 19, 2), SurfacePiece.Material.GRAVEL),
+                        new SurfacePiece.Change(origin, SurfacePiece.Material.RAIL, SurfacePiece.Shape.EAST_WEST)),
+                List.of(origin), List.of(new SurfacePiece.Cell(8, 19, 2))));
+        List<SurfacePiece> branch = surface;
+        var clean = branchTerrain(helper);
+        for (int seed = 0; seed < 1000 && branch.equals(surface); seed++) {
+            branch = io.github.andrispowq.lostrailways.surface.LocalBranches.add(surface,
+                    new ChunkSurfaceTarget(clean, 12, position -> true), cell -> true, cell -> false, 0, 0, seed);
+        }
+        helper.assertTrue(!branch.equals(surface), "A suitable low cave gets an uncommon descending spur");
+        helper.assertTrue(new SurfacePlacement().place(branch, new ChunkSurfaceTarget(clean, 12, position -> true)).blocks() > 0,
+                "Safe branch places in a real chunk");
+        helper.assertTrue(clean.getBlockState(new BlockPos(8, 18, 7)).is(Blocks.COBBLESTONE), "Branch reaches the cave above minimum depth");
+        for (var obstacle : List.of(Blocks.DEEPSLATE, Blocks.DIAMOND_ORE, Blocks.WATER, Blocks.LAVA, Blocks.CHEST,
+                Blocks.SPAWNER, Blocks.OAK_LOG, Blocks.SCULK, Blocks.SAND, Blocks.GRAVEL)) {
+            var chunk = branchTerrain(helper);
+            var pos = new BlockPos(8, 19, 5);
+            chunk.setBlockState(pos, obstacle.defaultBlockState());
+            var result = new SurfacePlacement().place(branch, new ChunkSurfaceTarget(chunk, 12, position -> true));
+            helper.assertTrue(result.blocks() == 0 && chunk.getBlockState(pos).is(obstacle), "Conflict rejects the whole spur, including its junction");
+        }
+        var looseFloor = branchTerrain(helper);
+        looseFloor.setBlockState(new BlockPos(8, 18, 5), Blocks.SAND.defaultBlockState());
+        helper.assertTrue(new SurfacePlacement().place(branch, new ChunkSurfaceTarget(looseFloor, 12, position -> true)).blocks() == 0,
+                "Final preflight rejects loose supports as well as loose excavation cells");
+        helper.assertTrue(new SurfacePlacement().place(branch, new ChunkSurfaceTarget(branchTerrain(helper), 20, position -> true)).blocks() == 0,
+                "Configured minimum applies to every support and carved cell");
+        helper.succeed();
+    }
+
+    @GameTest
+    public void mineshaftBoundsAndUnresolvedStructuresFailClosed(GameTestHelper helper) {
+        var bounds = new io.github.andrispowq.lostrailways.surface.BranchStructures(
+                List.of(new net.minecraft.world.level.levelgen.structure.BoundingBox(5, 12, 14, 11, 24, 25)));
+        helper.assertTrue(!bounds.allows(new BlockPos(8, 20, 10)) && !bounds.allows(new BlockPos(8, 12, 18)), "Mineshaft footprint and support columns cannot be edited");
+        helper.assertTrue(bounds.near(new SurfacePiece.Cell(8, 20, 8)), "Approach can end outside the buffer");
+        helper.assertTrue(!bounds.near(new SurfacePiece.Cell(8, 20, 2)), "Distant terrain is not a mineshaft target");
+        var chunk = branchTerrain(helper);
+        var mine = helper.getLevel().registryAccess().lookupOrThrow(Registries.STRUCTURE).stream()
+                .filter(structure -> structure instanceof net.minecraft.world.level.levelgen.structure.structures.MineshaftStructure)
+                .findFirst().orElseThrow();
+        chunk.setAllReferences(Map.of(mine, new LongOpenHashSet(new long[]{1L})));
+        helper.assertTrue(io.github.andrispowq.lostrailways.surface.BranchStructures.inspect(List.of(chunk), pos -> null) == null,
+                "Unavailable structure starts disable placement without loading chunks");
+        var startChunk = branchTerrain(helper);
+        var room = new net.minecraft.world.level.levelgen.structure.structures.MineshaftPieces.MineShaftRoom(0,
+                net.minecraft.util.RandomSource.create(42), 0, 0,
+                net.minecraft.world.level.levelgen.structure.structures.MineshaftStructure.Type.NORMAL);
+        var start = new net.minecraft.world.level.levelgen.structure.StructureStart(mine, startChunk.getPos(), 0,
+                new net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer(List.of(room)));
+        startChunk.setAllStarts(Map.of(mine, start));
+        var resolved = io.github.andrispowq.lostrailways.surface.BranchStructures.inspect(List.of(chunk), pos -> startChunk);
+        helper.assertTrue(resolved != null && !resolved.allows(start.getBoundingBox().getCenter()),
+                "Resolved native mineshaft pieces supply protected bounds without loading terrain");
+        var other = helper.getLevel().registryAccess().lookupOrThrow(Registries.STRUCTURE).stream()
+                .filter(structure -> !(structure instanceof net.minecraft.world.level.levelgen.structure.structures.MineshaftStructure))
+                .findFirst().orElseThrow();
+        chunk.setAllReferences(Map.of(other, new LongOpenHashSet(new long[]{1L})));
+        helper.assertTrue(io.github.andrispowq.lostrailways.surface.BranchStructures.inspect(List.of(chunk), pos -> {
+            throw new AssertionError("Unrelated structures must be rejected before start lookup");
+        }) == null, "Every unrelated structure keeps the full conservative exclusion");
+        helper.succeed();
+    }
+
+    private static ProtoChunk branchTerrain(GameTestHelper helper) {
+        var chunk = new ProtoChunk(new ChunkPos(0, 0), UpgradeData.EMPTY, helper.getLevel(), helper.getLevel().palettedContainerFactory(), null);
+        chunk.setPersistedStatus(ChunkStatus.BIOMES);
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) for (int y = 10; y < 20; y++) {
+            if (z < 7 || y < 19) chunk.setBlockState(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState());
+            if (z >= 7) chunk.setBlockState(new BlockPos(x, 22, z), Blocks.STONE.defaultBlockState());
+        }
+        return chunk;
     }
 
     private static ProtoChunk crossingTerrain(GameTestHelper helper, int interiorHeight) {

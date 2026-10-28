@@ -300,3 +300,34 @@ underground branches remain subsequent work.
 Validation: 46 unit tests, 22 dedicated-server GameTests, and the normal-world client suite passed.
 The client suite retains forward/reverse chunk-order comparisons. No Git operations were performed;
 CI picks up the expanded suites through its existing build/client tasks.
+
+
+## Phase E — Local cave and mineshaft branches
+
+Derive at most one local branch from existing straight ordinary rail geometry in 8% of seeded eligible
+chunks. Try at most four deterministically ranked origins and two perpendicular directions, with 4–10
+blocks of length and one downward step per three blocks. All writes/preflight remain in the owning new
+chunk. Reject if no actual roofed cave opening or resolved mineshaft approach is found; do not invent
+phantom destinations or generate distant terrain. Require at least two buried columns before a cave
+endpoint; retain three-block clearance and modest vanilla supports/lining with missing rails. Replace
+only the origin track piece with the atomic branch, including its vanilla curved junction.
+
+Use the existing stable-terrain excavation whitelist for every branch floor and carved cell; reject
+deepslate, ores, fluids, block entities, trees/roots, loose terrain, and decorated cave blocks. Validate
+all wall/roof cells too. Every cell honors the minimum (Y=12 by default), so supports may reach Y=12
+and rails Y=13. Freeze a protected_underground biome tag set in new surface snapshots (lush/dripstone
+caves by default, deep dark always); require the existing frozen routing policy to allow each sampled
+underground biome as well. Old snapshots lack branchesEnabled and remain unchanged/branch-free.
+
+Permit only a narrowly scoped mineshaft exception to whole-chunk structure exclusion, and only in
+branch-enabled worlds. Resolve every mineshaft reference from already-required STRUCTURE_STARTS
+metadata, checking the native dependency radius before access. Unrelated structures or unresolved
+references veto placement. Protect the complete mineshaft horizontal box plus four blocks at all heights,
+including support pillars extending below its nominal box. Endpoints must be outside that footprint but
+inside an eight-block expanded 3D box; a further seeded 25% destination gate makes these approaches
+less common. No structures, loot containers, or portals are modified. Macro graph exports remain the
+surface plan; local branches are a deterministic terrain-derived refinement.
+
+This intentionally small slice provides local entrances and approaches, not cross-chunk descents from
+sea level to Y=12–20. Deep endpoint preference, longer underground routes, and broad multi-seed worldgen
+performance certification remain follow-up work, rather than silently weakening chunk/protection rules.
