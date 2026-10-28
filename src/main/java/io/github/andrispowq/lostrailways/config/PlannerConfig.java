@@ -25,6 +25,9 @@ public record PlannerConfig(int regionSizeChunks, double boundaryConnectionChanc
                 "lost_railways:preferred", new BiomeRule(1, true),
                 "lost_railways:forest", new BiomeRule(3, true),
                 "lost_railways:taiga", new BiomeRule(3, true),
+                "lost_railways:desert", new BiomeRule(6, false),
+                "lost_railways:jungle", new BiomeRule(12, false),
+                "lost_railways:swamp", new BiomeRule(10, true),
                 "lost_railways:excluded", BiomeRule.EXCLUDED));
     }
 

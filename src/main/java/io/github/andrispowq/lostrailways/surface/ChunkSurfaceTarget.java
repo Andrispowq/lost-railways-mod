@@ -42,7 +42,7 @@ public final class ChunkSurfaceTarget implements SurfacePlacement.Target {
         if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN) || state.is(Blocks.DEAD_BUSH)) return SurfacePlacement.Existing.VEGETATION;
         if (state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT) || state.is(Blocks.PODZOL)
                 || state.is(Blocks.STONE) || state.is(Blocks.ANDESITE) || state.is(Blocks.DIORITE) || state.is(Blocks.GRANITE)
-                || state.is(Blocks.GRAVEL) || state.is(Blocks.SAND)) return SurfacePlacement.Existing.NATURAL_GROUND;
+                || state.is(Blocks.GRAVEL) || state.is(Blocks.SAND) || state.is(Blocks.SANDSTONE) || state.is(Blocks.MUD)) return SurfacePlacement.Existing.NATURAL_GROUND;
         return SurfacePlacement.Existing.SOLID;
     }
 
@@ -70,6 +70,11 @@ public final class ChunkSurfaceTarget implements SurfacePlacement.Target {
             case SPRUCE_LOG -> Blocks.SPRUCE_LOG.defaultBlockState();
             case SPRUCE_SLAB -> Blocks.SPRUCE_SLAB.defaultBlockState();
             case SPRUCE_FENCE -> Blocks.SPRUCE_FENCE.defaultBlockState();
+            case JUNGLE_PLANKS -> Blocks.JUNGLE_PLANKS.defaultBlockState();
+            case JUNGLE_LOG -> Blocks.JUNGLE_LOG.defaultBlockState();
+            case JUNGLE_SLAB -> Blocks.JUNGLE_SLAB.defaultBlockState();
+            case JUNGLE_FENCE -> Blocks.JUNGLE_FENCE.defaultBlockState();
+            case SANDSTONE -> Blocks.SANDSTONE.defaultBlockState();
             case RAIL -> Blocks.RAIL.defaultBlockState().setValue(RailBlock.SHAPE, RailShape.valueOf(change.shape().name()));
             case POWERED_RAIL -> Blocks.POWERED_RAIL.defaultBlockState()
                     .setValue(PoweredRailBlock.SHAPE, RailShape.valueOf(change.shape().name())).setValue(PoweredRailBlock.POWERED, false);

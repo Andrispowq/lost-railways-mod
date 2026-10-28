@@ -247,3 +247,27 @@ worlds retain their stored exclusions/styles and planner policy. Taiga wins styl
 by forest then plains; independent routing exclusions still prevent placement. Explicit user biome-rule
 maps remain authoritative and are never silently extended. No terrain whitelist expansion or snow/tree
 clearing is introduced. Crossings/tunnels and underground expansion are deferred to subsequent slices.
+
+
+## Phase E — Desert, jungle, and swamp surface slice
+
+Add independent datapack tags and default costs 6/12/10 respectively. Desert/jungle are transit-only;
+without a verified settlement association, station templates are forbidden even if custom planner rules
+allow candidate nodes. Swamps permit very rare shelters (5% of safe candidates). Keep fixed planner-v1
+geometry and preserve all existing world snapshots; only new-world resolved policies expand.
+
+Use sandstone desert beds, mossy jungle beds with jungle-wood markers, and raised oak-plank swamp beds.
+Rail wear multipliers are 2/2.5/2 relative to plains. Missing desert bed leaves natural sand instead of
+placing loose sand above rails. Do not add fluid removal, excavation, roots/tree clearing, or broad
+replacement whitelists. A swamp rail sits one block higher with a wooden bed in previously empty space;
+preflight validates both natural support and clearance before writing. Add only natural mud and sandstone
+to the ground whitelist for these biomes; muddy roots remain protected obstacles. Height refinement includes the
+raised offset so land transitions use ascending rails.
+
+A cached, pure edge mask requires jungle/swamp columns to have suitable non-edge-biome land within
+16 blocks on one of eight sample directions and within two blocks of elevation. Excluded/wet columns
+cannot establish an edge. This deliberately rejects cores rather than creating long wetland crossings;
+coarse planner routes may become discontinuous here. Sampling uses immutable terrain, never additional
+chunk requests. Normal biome conflict protections and deterministic generation order remain intact.
+Style precedence is swamp/jungle/desert/taiga/forest/plains; routing exclusions independently win.
+Settlement stations, large bridges/tunnels, and underground branches remain subsequent work.

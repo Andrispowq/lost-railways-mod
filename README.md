@@ -2,7 +2,7 @@
 
 A Minecraft Java 26.3 Fabric mod about discovering, restoring, and reusing abandoned railways.
 
-**Status: Phase E, taiga expansion.** Minecart improvements, deterministic networks, abandoned tracks,
+**Status: Phase E, surface biome expansion.** Minecart improvements, deterministic networks, abandoned tracks,
 small stations, and junctions are implemented for new plains, forest, and taiga terrain. Broader biome coverage,
 tunnels/bridges, and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
 
@@ -112,6 +112,9 @@ Add a `planner` object to the instance config to tune **new worlds** (omitted fi
     "lost_railways:preferred": { "cost": 1, "stations": true },
     "lost_railways:forest": { "cost": 3, "stations": true },
     "lost_railways:taiga": { "cost": 3, "stations": true },
+    "lost_railways:desert": { "cost": 6, "stations": false },
+    "lost_railways:jungle": { "cost": 12, "stations": false },
+    "lost_railways:swamp": { "cost": 10, "stations": true },
     "lost_railways:excluded": { "cost": 0, "stations": false }
   }
 }
@@ -240,3 +243,26 @@ start generating taiga railways. Use a new world to try the expansion. If your i
 provides a `planner.biomeRules` map, add the taiga rule shown above before creating that world: explicit
 maps replace defaults. Taiga styling takes precedence over forest/plains when tags overlap; routing
 exclusions still win. Bridges, tunnels, and underground branches remain later Phase E iterations.
+
+
+### Desert, jungle, and swamp expansion
+
+New worlds also admit these expensive transit corridors; plains remain preferred:
+
+| Biomes | Routing cost | Remnants | Stations |
+|---|---:|---|---|
+| Desert | 6 | Sandstone bed, twice the plains rail wear; gaps retain natural sand | None until settlement association exists |
+| Jungle, sparse jungle, bamboo jungle | 12 | Mossy bed, jungle-wood junction markers, 2.5× plains rail wear | None until settlement association exists |
+| Swamp, mangrove swamp | 10 | Raised oak-plank bed on dry edges, twice the plains rail wear | Very rare (5% of otherwise safe candidates) |
+
+Jungle/swamp placement requires suitable non-jungle/non-swamp land within a 16-block cardinal or
+diagonal sample and within two blocks of elevation. Ocean/river/excluded land cannot qualify that edge.
+This conservative mask can leave gaps in coarse routes. It uses generator samples, not chunk loads.
+Raised swamp track is one block above the natural surface and requires solid natural ground below;
+water, trees, roots, and protected blocks reject the piece. It is not a wetland bridge system.
+
+Tags are `lost_railways:desert`, `lost_railways:jungle`, and `lost_railways:swamp`. Style-overlap precedence
+is swamp, jungle, desert, taiga, forest, plains; routing exclusions always win. Desert/jungle templates
+never generate standalone stations, even if a custom routing rule permits station candidates.
+Existing snapshots and explicit config rule maps are unchanged: use a new world and add the rules
+above if your config supplies its own map. No new mountain, ocean, or underground generation is enabled.

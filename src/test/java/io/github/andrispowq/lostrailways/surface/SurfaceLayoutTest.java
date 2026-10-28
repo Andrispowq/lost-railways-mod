@@ -149,6 +149,48 @@ class SurfaceLayoutTest {
         assertTrue(stations > 0 && stations < 100, "Two candidate stations per seed should remain occasional");
     }
 
+    @Test
+    void remainingBiomesRespectEdgesPalettesAndStationRestrictions() {
+        var graph = graph(true, List.of(p(0, 0), p(15, 0)));
+        for (var style : List.of(SurfaceStyle.DESERT, SurfaceStyle.JUNGLE, SurfaceStyle.SWAMP)) {
+            SurfaceSampler edge = (x, z) -> new SurfaceSampler.Column(64, z >= 16 ? SurfaceStyle.PLAINS : style);
+            var pieces = layout.plan(List.of(graph), 0, 0, 42, INTACT, edge);
+            assertFalse(pieces.isEmpty());
+            assertEquals(pieces, layout.plan(List.of(graph), 0, 0, 42, INTACT, edge));
+            assertTrue(pieces.stream().filter(piece -> piece.kind() == SurfacePiece.Kind.TRACK)
+                    .flatMap(piece -> piece.blocks().stream()).anyMatch(change -> change.material() == style.bed()));
+            if (style == SurfaceStyle.SWAMP) {
+                assertTrue(pieces.stream().flatMap(piece -> piece.blocks().stream()).filter(SurfaceLayoutTest::rail)
+                        .allMatch(change -> change.position().y() == 65));
+            } else {
+                for (int seed = 0; seed < 100; seed++) {
+                    assertTrue(layout.plan(List.of(graph), 0, 0, seed, INTACT, edge).stream()
+                            .noneMatch(piece -> piece.kind() == SurfacePiece.Kind.STATION));
+                }
+            }
+            if (style.edgeOnly()) {
+                assertTrue(layout.plan(List.of(graph), 0, 0, 42, INTACT,
+                        (x, z) -> new SurfaceSampler.Column(64, style)).isEmpty());
+                assertTrue(layout.plan(List.of(graph), 0, 0, 42, INTACT,
+                        (x, z) -> new SurfaceSampler.Column(64, z >= 16 ? SurfaceStyle.EXCLUDED : style)).isEmpty());
+            }
+        }
+    }
+
+    @Test
+    void raisedSwampTransitionUsesAscendingRailAndEdgeSamplingIsBounded() {
+        var graph = graph(false, List.of(p(0, 8), p(31, 8)));
+        AtomicInteger samples = new AtomicInteger();
+        SurfaceSampler terrain = (x, z) -> {
+            samples.incrementAndGet();
+            return new SurfaceSampler.Column(64, x < 8 || z >= 16 ? SurfaceStyle.PLAINS : SurfaceStyle.SWAMP);
+        };
+        var pieces = layout.plan(List.of(graph), 0, 0, 1, INTACT, terrain);
+        assertTrue(pieces.stream().flatMap(piece -> piece.blocks().stream()).anyMatch(change ->
+                change.position().x() == 7 && change.shape() == SurfacePiece.Shape.ASCENDING_EAST));
+        assertTrue(samples.get() <= 400, "Edge queries stay bounded and never request chunks");
+    }
+
     @SafeVarargs
     static RegionGraph graph(boolean stations, List<RoutePoint>... paths) {
         List<NetworkNode> nodes = new ArrayList<>();

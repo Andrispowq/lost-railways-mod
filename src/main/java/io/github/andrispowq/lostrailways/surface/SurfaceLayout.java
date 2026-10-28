@@ -27,8 +27,9 @@ public final class SurfaceLayout {
         int minX = chunkX * 16;
         int minZ = chunkZ * 16;
         Set<Point> geometry = geometry(graphs, minX - 2, minZ - 2, minX + 17, minZ + 17);
+        SurfaceSampler terrain = SurfaceEdgePolicy.filter(source);
         Map<Point, SurfaceSampler.Column> columns = new HashMap<>();
-        SurfaceSampler sampler = (x, z) -> columns.computeIfAbsent(new Point(x, z), point -> source.sample(x, z));
+        SurfaceSampler sampler = (x, z) -> columns.computeIfAbsent(new Point(x, z), point -> terrain.sample(x, z));
         List<SurfacePiece> pieces = new ArrayList<>();
         for (Point point : geometry) {
             if (!owned(point.x(), point.z(), chunkX, chunkZ)) {
@@ -45,13 +46,13 @@ public final class SurfaceLayout {
             }
             int x = point.x();
             int z = point.z();
-            int y = column.y();
-            double wear = column.style().wooded() ? 1.5 : 1;
+            int y = column.railY();
+            double wear = column.style().wear();
             boolean bedGap = SurfaceNoise.at(seed, x, z, 11) < config.missingBedChance()
                     || SurfaceNoise.at(seed, Math.floorDiv(x, 8), Math.floorDiv(z, 8), 12) < config.missingBedChance() / 2;
             if (!bedGap) {
                 List<Change> blocks = new ArrayList<>();
-                Material bed = column.style().wooded() ? Material.MOSSY_COBBLE : Material.GRAVEL;
+                Material bed = column.style().bed();
                 blocks.add(new Change(new Cell(x, y - 1, z), bed));
                 // Vanilla cannot represent a four-way switch. Leave an explicit, repairable ruined crossing.
                 if (neighbors.size() != 4 && SurfaceNoise.at(seed, x, z, 13) >= config.missingRailChance() * wear) {
@@ -60,10 +61,12 @@ public final class SurfaceLayout {
                     blocks.add(new Change(new Cell(x, y, z), powered ? Material.POWERED_RAIL : Material.RAIL, shape));
                 }
                 pieces.add(new SurfacePiece(SurfacePiece.Kind.TRACK, blocks,
-                        List.of(new Cell(x, y, z), new Cell(x, y + 1, z)),
-                        bed == Material.GRAVEL ? List.of(new Cell(x, y - 1, z), new Cell(x, y - 2, z)) : List.of(new Cell(x, y - 1, z))));
+                        column.style() == SurfaceStyle.SWAMP
+                                ? List.of(new Cell(x, y - 1, z), new Cell(x, y, z), new Cell(x, y + 1, z))
+                                : List.of(new Cell(x, y, z), new Cell(x, y + 1, z)),
+                        column.style() == SurfaceStyle.SWAMP ? List.of(new Cell(x, y - 2, z)) : bed == Material.GRAVEL ? List.of(new Cell(x, y - 1, z), new Cell(x, y - 2, z)) : List.of(new Cell(x, y - 1, z))));
             }
-            if (neighbors.size() >= 3 && neighbors.stream().allMatch(p -> sampler.sample(p.x(), p.z()).y() == y)) {
+            if (neighbors.size() >= 3 && neighbors.stream().allMatch(p -> sampler.sample(p.x(), p.z()).railY() == y)) {
                 junction(pieces, point, y, geometry, sampler, chunkX, chunkZ);
             }
         }
@@ -99,10 +102,10 @@ public final class SurfaceLayout {
     }
 
     private static Shape shape(Point point, List<Point> neighbors, SurfaceSampler sampler, SurfaceConfig config) {
-        int y = sampler.sample(point.x(), point.z()).y();
+        int y = sampler.sample(point.x(), point.z()).railY();
         for (Point neighbor : neighbors) {
             var next = sampler.sample(neighbor.x(), neighbor.z());
-            if (!suitable(next, config) || Math.abs(next.y() - y) > 1) {
+            if (!suitable(next, config) || Math.abs(next.railY() - y) > 1) {
                 return null;
             }
         }
@@ -110,9 +113,9 @@ public final class SurfaceLayout {
         boolean west = neighbors.contains(new Point(point.x() - 1, point.z()));
         boolean south = neighbors.contains(new Point(point.x(), point.z() + 1));
         boolean north = neighbors.contains(new Point(point.x(), point.z() - 1));
-        List<Point> uphill = neighbors.stream().filter(p -> sampler.sample(p.x(), p.z()).y() > y).toList();
+        List<Point> uphill = neighbors.stream().filter(p -> sampler.sample(p.x(), p.z()).railY() > y).toList();
         boolean straight = !(east || west) || !(north || south);
-        if (!straight && neighbors.stream().anyMatch(p -> sampler.sample(p.x(), p.z()).y() != y) || uphill.size() > 1) {
+        if (!straight && neighbors.stream().anyMatch(p -> sampler.sample(p.x(), p.z()).railY() != y) || uphill.size() > 1) {
             return null;
         }
         if (!uphill.isEmpty()) {
@@ -157,7 +160,7 @@ public final class SurfaceLayout {
         if (!geometry.contains(anchor)) return;
         var column = sampler.sample(anchor.x(), anchor.z());
         if (!suitable(column, config) || SurfaceNoise.at(seed, anchor.x(), anchor.z(), 20)
-                >= (column.style().wooded() ? 0.3 : 0.85)) return;
+                >= column.style().stationChance()) return;
         List<Point> neighbors = neighbors(anchor, geometry);
         if (neighbors.isEmpty()) return;
         Point next = neighbors.getFirst();

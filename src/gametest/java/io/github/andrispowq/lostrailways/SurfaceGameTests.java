@@ -202,6 +202,47 @@ public final class SurfaceGameTests {
         throw new AssertionError("Expected an occasional taiga station");
     }
 
+    @GameTest
+    public void remainingBiomePoliciesAndRaisedSwampSafety(GameTestHelper helper) throws Exception {
+        var rules = io.github.andrispowq.lostrailways.planner.MinecraftTerrain.resolveBiomes(helper.getLevel(),
+                io.github.andrispowq.lostrailways.config.PlannerConfig.defaults());
+        for (String name : List.of("desert", "jungle", "sparse_jungle", "bamboo_jungle")) {
+            var rule = rules.get("minecraft:" + name);
+            helper.assertTrue(rule.cost() >= 6 && !rule.stations(), "Desert/jungle remain expensive transit-only biomes");
+        }
+        for (String name : List.of("swamp", "mangrove_swamp")) {
+            helper.assertTrue(rules.get("minecraft:" + name).cost() == 10, "Wetlands must be penalized");
+        }
+        for (String name : List.of("ocean", "deep_dark", "jagged_peaks")) {
+            helper.assertTrue(rules.get("minecraft:" + name).cost() == 0, "Protected biomes stay excluded");
+        }
+        var graph = graph(false, List.of(p(0, 8), p(15, 8)));
+        var pieces = new SurfaceLayout().plan(List.of(graph), 0, 0, 1, INTACT,
+                (x, z) -> new SurfaceSampler.Column(64, z >= 16 ? SurfaceStyle.PLAINS : SurfaceStyle.SWAMP));
+        var chunk = terrain(helper);
+        chunk.setBlockState(new BlockPos(4, 63, 8), Blocks.MUD.defaultBlockState());
+        chunk.setBlockState(new BlockPos(5, 64, 8), Blocks.WATER.defaultBlockState());
+        new SurfacePlacement().place(pieces, new ChunkSurfaceTarget(chunk, 12, position -> true));
+        helper.assertTrue(chunk.getBlockState(new BlockPos(4, 64, 8)).is(Blocks.OAK_PLANKS)
+                && BaseRailBlock.isRail(chunk.getBlockState(new BlockPos(4, 65, 8))), "Dry swamp edge gets a raised wooden bed");
+        helper.assertTrue(chunk.getBlockState(new BlockPos(5, 64, 8)).is(Blocks.WATER)
+                && chunk.getBlockState(new BlockPos(5, 65, 8)).isAir(), "Water must reject the entire raised column");
+        var directory = Files.createTempDirectory("lost-railways-biomes-test-");
+        var path = directory.resolve("surface.json");
+        try {
+            var settings = SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults());
+            helper.assertTrue(settings.styles().get("minecraft:desert") == SurfaceStyle.DESERT
+                    && settings.styles().get("minecraft:bamboo_jungle") == SurfaceStyle.JUNGLE
+                    && settings.styles().get("minecraft:mangrove_swamp") == SurfaceStyle.SWAMP, "New styles resolve from data tags");
+            helper.assertTrue(settings.equals(SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults())),
+                    "New styles survive restart");
+        } finally {
+            Files.deleteIfExists(path);
+            Files.deleteIfExists(directory);
+        }
+        helper.succeed();
+    }
+
     private static ProtoChunk terrain(GameTestHelper helper) {
         var chunk = new ProtoChunk(new ChunkPos(0, 0), UpgradeData.EMPTY, helper.getLevel(), helper.getLevel().palettedContainerFactory(), null);
         chunk.setPersistedStatus(ChunkStatus.BIOMES);

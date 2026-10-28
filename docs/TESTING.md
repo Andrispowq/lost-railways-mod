@@ -116,3 +116,17 @@ world forward/reverse-generation client suite remain active in CI.
 Manual check: use a new normal world with default biome rules, inspect a graph in taiga, and follow it
 through regular, snowy, and old-growth variants. Look for mossy ballast and spruce shelters; check tree
 preservation and natural snow cover. Existing worlds intentionally retain their frozen biome eligibility.
+
+
+## Phase E: remaining surface biomes
+
+The standard build verifies desert/jungle station prohibition across 100 seeds, deterministic palettes,
+wetland/jungle core and ocean-edge exclusion, bounded edge sampling, raised swamp rails and their
+ascending land transition. Minecraft integration tests resolve all vanilla desert/jungle/swamp variants,
+retain ocean/mountain/deep-dark exclusions, round-trip the new styles, and verify a dry raised column
+places while an adjacent water column remains entirely untouched. Existing conflict, snapshot, chunk
+seam, and normal-world order tests continue to run.
+
+For manual coverage, explore new-world desert corridors, jungle fringes, and dry swamp/mangrove edges.
+Repair gaps and ride transitions; check that trees/roots and water stay intact. No desert/jungle stations
+are expected until settlement-aware placement is implemented. Large bridges/tunnels remain later work.
