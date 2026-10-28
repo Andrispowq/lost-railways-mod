@@ -1,0 +1,50 @@
+name: Release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Candidate version (for example 0.1.0-rc.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Validate version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || exit 1
+      - name: Install virtual display
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri libglx-mesa0
+      - name: Validate candidate
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          LIBGL_ALWAYS_SOFTWARE: 'true'
+        run: xvfb-run -a ./gradlew --no-daemon -Pmod_version="$RELEASE_VERSION" build runClientGameTest
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lost-railways-${{ inputs.version }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: release-validation
+          path: |
+            build/reports/
+            build/test-results/
+            build/run/**/logs/
+            build/run/**/screenshots/
