@@ -66,6 +66,10 @@ public final class ChunkSurfaceTarget implements SurfacePlacement.Target {
             case OAK_LOG -> Blocks.OAK_LOG.defaultBlockState();
             case OAK_SLAB -> Blocks.OAK_SLAB.defaultBlockState();
             case OAK_FENCE -> Blocks.OAK_FENCE.defaultBlockState();
+            case SPRUCE_PLANKS -> Blocks.SPRUCE_PLANKS.defaultBlockState();
+            case SPRUCE_LOG -> Blocks.SPRUCE_LOG.defaultBlockState();
+            case SPRUCE_SLAB -> Blocks.SPRUCE_SLAB.defaultBlockState();
+            case SPRUCE_FENCE -> Blocks.SPRUCE_FENCE.defaultBlockState();
             case RAIL -> Blocks.RAIL.defaultBlockState().setValue(RailBlock.SHAPE, RailShape.valueOf(change.shape().name()));
             case POWERED_RAIL -> Blocks.POWERED_RAIL.defaultBlockState()
                     .setValue(PoweredRailBlock.SHAPE, RailShape.valueOf(change.shape().name())).setValue(PoweredRailBlock.POWERED, false);

@@ -120,6 +120,35 @@ class SurfaceLayoutTest {
                 .anyMatch(change -> change.position().x() == 8 && change.position().z() == 8));
     }
 
+    @Test
+    void taigaUsesSpruceForStationsAndJunctionsWithForestWear() {
+        var graph = graph(true, List.of(p(0, 0), p(15, 0)), List.of(p(8, 0), p(8, 15)));
+        int stations = 0;
+        for (int seed = 0; seed < 100; seed++) {
+            var taiga = layout.plan(List.of(graph), 0, 0, seed, SurfaceConfig.defaults(),
+                    (x, z) -> new SurfaceSampler.Column(64, SurfaceStyle.TAIGA));
+            var forest = layout.plan(List.of(graph), 0, 0, seed, SurfaceConfig.defaults(),
+                    (x, z) -> new SurfaceSampler.Column(64, SurfaceStyle.FOREST));
+            assertEquals(forest.stream().filter(piece -> piece.kind() == SurfacePiece.Kind.TRACK).toList(),
+                    taiga.stream().filter(piece -> piece.kind() == SurfacePiece.Kind.TRACK).toList());
+            assertEquals(taiga, layout.plan(List.of(graph), 0, 0, seed, SurfaceConfig.defaults(),
+                    (x, z) -> new SurfaceSampler.Column(64, SurfaceStyle.TAIGA)));
+            for (var piece : taiga) {
+                assertTrue(piece.blocks().stream().noneMatch(change -> change.material().name().startsWith("OAK_")));
+                if (piece.kind() == SurfacePiece.Kind.STATION) {
+                    stations++;
+                    for (var material : List.of(SurfacePiece.Material.SPRUCE_PLANKS, SurfacePiece.Material.SPRUCE_LOG, SurfacePiece.Material.SPRUCE_SLAB)) {
+                        assertTrue(piece.blocks().stream().anyMatch(change -> change.material() == material));
+                    }
+                }
+                if (piece.kind() == SurfacePiece.Kind.JUNCTION) {
+                    assertTrue(piece.blocks().stream().anyMatch(change -> change.material() == SurfacePiece.Material.SPRUCE_FENCE));
+                }
+            }
+        }
+        assertTrue(stations > 0 && stations < 100, "Two candidate stations per seed should remain occasional");
+    }
+
     @SafeVarargs
     static RegionGraph graph(boolean stations, List<RoutePoint>... paths) {
         List<NetworkNode> nodes = new ArrayList<>();

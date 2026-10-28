@@ -232,3 +232,18 @@ ARM64/Xvfb Docker suite passed in two minutes. The enabled macOS/Linux proofs co
 chunk-order output. Disabled generation produced zero marked blocks. The packaged JAR excludes tests.
 Evidence lives in ignored build/phase-d-evidence/. Timing samples were not a controlled performance
 comparison (the disabled run overlapped Docker work), so no overhead percentage is claimed.
+
+
+## Phase E — Taiga slice
+
+Add an independent lost_railways:taiga routing tag backed by Minecraft's is_taiga tag, verified against
+the pinned 26.3 artifact (regular, snowy, old-growth pine, old-growth spruce). Default routing cost is 3,
+matching forests, with station candidates allowed. Reuse forest wear and station frequency; choose
+vanilla spruce planks/logs/slabs/fences for platforms, shelters, and junctions, with mossy ballast.
+Centralize wooden palette selection in SurfaceStyle so layout geometry and damage stay unchanged.
+
+Persist TAIGA in newly created surface snapshots. No snapshot migration or topology rewrite: existing
+worlds retain their stored exclusions/styles and planner policy. Taiga wins style tag overlaps, followed
+by forest then plains; independent routing exclusions still prevent placement. Explicit user biome-rule
+maps remain authoritative and are never silently extended. No terrain whitelist expansion or snow/tree
+clearing is introduced. Crossings/tunnels and underground expansion are deferred to subsequent slices.

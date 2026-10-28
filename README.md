@@ -2,8 +2,8 @@
 
 A Minecraft Java 26.3 Fabric mod about discovering, restoring, and reusing abandoned railways.
 
-**Status: Phase D surface railways.** Minecart improvements, deterministic networks, abandoned tracks,
-small stations, and junctions are implemented for new plains/forest terrain. Broader biome coverage,
+**Status: Phase E, taiga expansion.** Minecart improvements, deterministic networks, abandoned tracks,
+small stations, and junctions are implemented for new plains, forest, and taiga terrain. Broader biome coverage,
 tunnels/bridges, and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
 
 ## Development
@@ -98,8 +98,7 @@ nodes, route endpoints, unconnected candidates, and work/time statistics. Full w
 under `<world>/data/lost_railways_debug/region_X_Z.json`. This command **does not place blocks or
 load the inspected chunks**. Empty/disconnected graphs are valid in unsuitable terrain.
 
-The planner currently supports Overworld vanilla noise and flat generators. Plains and selected
-forests are enabled through datapack biome tags; oceans, rivers, and mountains are excluded. Unknown
+The planner currently supports Overworld vanilla noise and flat generators. Plains, selected forests, and taigas are enabled through datapack biome tags; oceans, rivers, and mountains are excluded. Unknown
 biomes default to excluded. Underground networks and broader biome support remain later phases.
 
 Add a `planner` object to the instance config to tune **new worlds** (omitted fields use defaults):
@@ -112,6 +111,7 @@ Add a `planner` object to the instance config to tune **new worlds** (omitted fi
   "biomeRules": {
     "lost_railways:preferred": { "cost": 1, "stations": true },
     "lost_railways:forest": { "cost": 3, "stations": true },
+    "lost_railways:taiga": { "cost": 3, "stations": true },
     "lost_railways:excluded": { "cost": 0, "stations": false }
   }
 }
@@ -225,3 +225,18 @@ the test must still complete successfully and capture the rendered world.
 
 The Docker test uses the host's CPU architecture by default. For exact GitHub runner architecture,
 add `--platform linux/amd64` to both Docker commands; emulation on an ARM Mac is slower.
+
+
+### Taiga expansion
+
+New worlds also route through regular, snowy, old-growth pine, and old-growth spruce taigas via the
+`lost_railways:taiga` tag (which includes `minecraft:is_taiga`). They have the same routing cost, wear,
+and occasional-station frequency as forests, with mossy cobblestone ballast and spruce platforms,
+posts, roofs, and junction markers. Trees, fluids, structures, and steep terrain retain the same
+protection rules. Snowy taiga is eligible; the mod does not clear snow or create powered routes.
+
+Existing planner and surface snapshots stay unchanged, so existing worlds do **not** automatically
+start generating taiga railways. Use a new world to try the expansion. If your instance config explicitly
+provides a `planner.biomeRules` map, add the taiga rule shown above before creating that world: explicit
+maps replace defaults. Taiga styling takes precedence over forest/plains when tags overlap; routing
+exclusions still win. Bridges, tunnels, and underground branches remain later Phase E iterations.

@@ -103,3 +103,16 @@ Manual checks: inspect fresh plains/forest routes, repair gaps and ride through 
 station appearance and terrain integration on several seeds. Save/restart, edit a generated station,
 and explore adjacent new chunks to confirm edits stay intact. Compare a pre-existing save before/after
 upgrade: only fresh terrain should gain railways. Removing the mod leaves vanilla blocks behind.
+
+
+## Phase E: taiga
+
+The standard build now checks all four vanilla taiga biomes against the loaded biome tags and routing
+policy, round-trips frozen pre-taiga surface settings, verifies complete vanilla spruce station placement,
+and compares taiga wear with forest wear over 100 deterministic seeds. The layout test also verifies
+spruce junction markers and occasional station frequency. Existing protection/seam tests and the normal
+world forward/reverse-generation client suite remain active in CI.
+
+Manual check: use a new normal world with default biome rules, inspect a graph in taiga, and follow it
+through regular, snowy, and old-growth variants. Look for mossy ballast and spruce shelters; check tree
+preservation and natural snow cover. Existing worlds intentionally retain their frozen biome eligibility.

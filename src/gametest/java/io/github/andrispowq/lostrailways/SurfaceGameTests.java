@@ -148,6 +148,60 @@ public final class SurfaceGameTests {
         helper.succeed();
     }
 
+    @GameTest
+    public void taigaPolicyStylesAndLegacySnapshots(GameTestHelper helper) throws Exception {
+        var directory = Files.createTempDirectory("lost-railways-taiga-test-");
+        var path = directory.resolve("surface.json");
+        try {
+            var settings = SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults());
+            var rules = io.github.andrispowq.lostrailways.planner.MinecraftTerrain.resolveBiomes(helper.getLevel(),
+                    io.github.andrispowq.lostrailways.config.PlannerConfig.defaults());
+            for (String biome : List.of("taiga", "snowy_taiga", "old_growth_pine_taiga", "old_growth_spruce_taiga")) {
+                helper.assertTrue(settings.styles().get("minecraft:" + biome) == SurfaceStyle.TAIGA, "Taiga tag must resolve spruce styling");
+                var rule = rules.get("minecraft:" + biome);
+                helper.assertTrue(rule.cost() == 3 && rule.stations(), "Taiga must allow forest-cost routes and occasional stations");
+            }
+            helper.assertTrue(rules.get("minecraft:deep_dark").cost() == 0, "Protected biomes remain excluded");
+            var legacy = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+            legacy.getAsJsonObject("styles").addProperty("minecraft:taiga", "EXCLUDED");
+            Files.writeString(path, legacy.toString());
+            var reloaded = SurfaceSettings.loadOrCreate(path, helper.getLevel(), SurfaceConfig.defaults());
+            helper.assertTrue(reloaded.styles().get("minecraft:taiga") == SurfaceStyle.EXCLUDED
+                    && Files.readString(path).equals(legacy.toString()), "Existing worlds must not silently gain a new biome style");
+        } finally {
+            Files.deleteIfExists(path);
+            Files.deleteIfExists(directory);
+        }
+        helper.succeed();
+    }
+
+    @GameTest
+    public void taigaStationPlacesVanillaSpruceBlocks(GameTestHelper helper) {
+        for (int seed = 0; seed < 100; seed++) {
+            var pieces = new SurfaceLayout().plan(List.of(graph(true, List.of(p(0, 0), p(15, 0)))), 0, 0, seed, INTACT,
+                    (x, z) -> new SurfaceSampler.Column(64, SurfaceStyle.TAIGA));
+            var station = pieces.stream().filter(piece -> piece.kind() == SurfacePiece.Kind.STATION).findFirst();
+            if (station.isEmpty()) continue;
+            var chunk = terrain(helper);
+            new SurfacePlacement().place(pieces, new ChunkSurfaceTarget(chunk, 12, position -> true));
+            helper.assertTrue(station.get().blocks().stream().allMatch(change ->
+                    chunk.getBlockState(pos(change.position())).equals(ChunkSurfaceTarget.state(change))), "Entire spruce station must materialize");
+            for (var material : List.of(SurfacePiece.Material.SPRUCE_PLANKS, SurfacePiece.Material.SPRUCE_LOG,
+                    SurfacePiece.Material.SPRUCE_SLAB, SurfacePiece.Material.SPRUCE_FENCE)) {
+                var state = ChunkSurfaceTarget.state(new SurfacePiece.Change(new SurfacePiece.Cell(0, 64, 0), material));
+                helper.assertTrue(state.is(switch (material) {
+                    case SPRUCE_PLANKS -> Blocks.SPRUCE_PLANKS;
+                    case SPRUCE_LOG -> Blocks.SPRUCE_LOG;
+                    case SPRUCE_SLAB -> Blocks.SPRUCE_SLAB;
+                    default -> Blocks.SPRUCE_FENCE;
+                }), "Spruce palette must use vanilla blocks");
+            }
+            helper.succeed();
+            return;
+        }
+        throw new AssertionError("Expected an occasional taiga station");
+    }
+
     private static ProtoChunk terrain(GameTestHelper helper) {
         var chunk = new ProtoChunk(new ChunkPos(0, 0), UpgradeData.EMPTY, helper.getLevel(), helper.getLevel().palettedContainerFactory(), null);
         chunk.setPersistedStatus(ChunkStatus.BIOMES);

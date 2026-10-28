@@ -46,12 +46,12 @@ public final class SurfaceLayout {
             int x = point.x();
             int z = point.z();
             int y = column.y();
-            double wear = column.style() == SurfaceStyle.FOREST ? 1.5 : 1;
+            double wear = column.style().wooded() ? 1.5 : 1;
             boolean bedGap = SurfaceNoise.at(seed, x, z, 11) < config.missingBedChance()
                     || SurfaceNoise.at(seed, Math.floorDiv(x, 8), Math.floorDiv(z, 8), 12) < config.missingBedChance() / 2;
             if (!bedGap) {
                 List<Change> blocks = new ArrayList<>();
-                Material bed = column.style() == SurfaceStyle.FOREST ? Material.MOSSY_COBBLE : Material.GRAVEL;
+                Material bed = column.style().wooded() ? Material.MOSSY_COBBLE : Material.GRAVEL;
                 blocks.add(new Change(new Cell(x, y - 1, z), bed));
                 // Vanilla cannot represent a four-way switch. Leave an explicit, repairable ruined crossing.
                 if (neighbors.size() != 4 && SurfaceNoise.at(seed, x, z, 13) >= config.missingRailChance() * wear) {
@@ -143,9 +143,10 @@ public final class SurfaceLayout {
         int z = point.z() + 2;
         if (owned(x, z, chunkX, chunkZ) && !geometry.contains(new Point(x, z)) && sampler.sample(x, z).y() == y
                 && sampler.sample(x, z).style() != SurfaceStyle.EXCLUDED) {
+            Material fence = sampler.sample(point.x(), point.z()).style().fence();
             pieces.add(new SurfacePiece(SurfacePiece.Kind.JUNCTION,
                     List.of(new Change(new Cell(x, y - 1, z), Material.MOSSY_COBBLE),
-                            new Change(new Cell(x, y, z), Material.OAK_FENCE), new Change(new Cell(x, y + 1, z), Material.OAK_FENCE)),
+                            new Change(new Cell(x, y, z), fence), new Change(new Cell(x, y + 1, z), fence)),
                     List.of(new Cell(x, y, z), new Cell(x, y + 1, z)), List.of(new Cell(x, y - 1, z))));
         }
     }
@@ -156,7 +157,7 @@ public final class SurfaceLayout {
         if (!geometry.contains(anchor)) return;
         var column = sampler.sample(anchor.x(), anchor.z());
         if (!suitable(column, config) || SurfaceNoise.at(seed, anchor.x(), anchor.z(), 20)
-                >= (column.style() == SurfaceStyle.FOREST ? 0.3 : 0.85)) return;
+                >= (column.style().wooded() ? 0.3 : 0.85)) return;
         List<Point> neighbors = neighbors(anchor, geometry);
         if (neighbors.isEmpty()) return;
         Point next = neighbors.getFirst();
@@ -185,16 +186,16 @@ public final class SurfaceLayout {
                 ground.add(new Cell(x, footing.y() - 1, z));
                 for (int h = footing.y(); h <= y + 3; h++) clearance.add(new Cell(x, h, z));
                 for (int h = footing.y() - 1; h < y; h++) blocks.add(new Change(new Cell(x, h, z), Material.COBBLE));
-                Material floor = column.style() == SurfaceStyle.FOREST ? Material.OAK_PLANKS
+                Material floor = column.style().wooded() ? column.style().planks()
                         : SurfaceNoise.at(seed, x, z, 21) < 0.3 ? Material.CRACKED_BRICKS : Material.STONE_BRICKS;
                 blocks.add(new Change(new Cell(x, y, z), floor));
                 if (along >= 3 && along <= 5 && side >= 2 && side <= 4) {
                     if (along != 4 && side != 3) {
-                        blocks.add(new Change(new Cell(x, y + 1, z), Material.OAK_LOG));
-                        blocks.add(new Change(new Cell(x, y + 2, z), Material.OAK_LOG));
+                        blocks.add(new Change(new Cell(x, y + 1, z), column.style().log()));
+                        blocks.add(new Change(new Cell(x, y + 2, z), column.style().log()));
                     }
                     if (!(along == 4 && side == 3 && SurfaceNoise.at(seed, x, z, 22) < 0.5)) {
-                        blocks.add(new Change(new Cell(x, y + 3, z), Material.OAK_SLAB));
+                        blocks.add(new Change(new Cell(x, y + 3, z), column.style().slab()));
                     }
                 }
             }
