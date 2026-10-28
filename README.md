@@ -79,3 +79,27 @@ The build uses Java 25 and the same wrapper/tests as native development. Exporte
 Xvfb for graphical testing. No game worlds or credentials are copied into the image.
 
 See [development decisions](docs/DECISIONS.md) for verified versions and boundaries.
+
+### Reproduce the Linux client CI test
+
+```sh
+docker build -f Dockerfile.client-test -t lost-railways-client-test .
+docker run --name lost-railways-client-smoke \
+  --mount type=volume,source=lost-railways-client-gradle,target=/root/.gradle \
+  lost-railways-client-test
+docker cp lost-railways-client-smoke:/workspace/build/diagnostics build/client-diagnostics
+docker cp lost-railways-client-smoke:/workspace/build/run/clientGameTest/screenshots build/client-screenshots
+docker rm lost-railways-client-smoke
+```
+
+On Ubuntu 24.04, the equivalent commands are `sudo bash scripts/install-client-test-deps.sh`
+and `bash scripts/run-client-smoke-test.sh`. The shared script forces SDL 3 to use X11,
+starts a 24-bit Xvfb display, checks Mesa's OpenGL/Vulkan software-rendering support, and bounds
+client startup and testing to 12 minutes (plus a 30-second shutdown grace period). A nonzero test,
+preflight, or timeout result fails the workflow. Both validation and release-candidate workflows
+use this script and retain its console log, game logs, crash reports, and screenshots.
+Minecraft may report a GLX visual error before successfully selecting software Vulkan under Xvfb;
+the test must still complete successfully and capture the rendered world.
+
+The Docker test uses the host's CPU architecture by default. For exact GitHub runner architecture,
+add `--platform linux/amd64` to both Docker commands; emulation on an ARM Mac is slower.

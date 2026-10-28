@@ -1,0 +1,7 @@
+# Matches the Ubuntu release used by the GitHub Actions client job.
+FROM eclipse-temurin:25-jdk-noble
+WORKDIR /workspace
+COPY scripts/install-client-test-deps.sh /tmp/install-client-test-deps.sh
+RUN bash /tmp/install-client-test-deps.sh && rm -rf /var/lib/apt/lists/*
+COPY . .
+CMD ["bash", "scripts/run-client-smoke-test.sh"]
