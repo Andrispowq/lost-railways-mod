@@ -7,11 +7,13 @@
   "entrypoints": {
     "fabric-gametest": [
       "io.github.andrispowq.lostrailways.BootstrapGameTest",
+      "io.github.andrispowq.lostrailways.PlannerGameTests",
       "io.github.andrispowq.lostrailways.MinecartGameTests"
     ],
     "fabric-client-gametest": [
       "io.github.andrispowq.lostrailways.BootstrapClientGameTest",
-      "io.github.andrispowq.lostrailways.MinecartClientGameTest"
+      "io.github.andrispowq.lostrailways.MinecartClientGameTest",
+      "io.github.andrispowq.lostrailways.PlannerClientGameTest"
     ]
   },
   "depends": {

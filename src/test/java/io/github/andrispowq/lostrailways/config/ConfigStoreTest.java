@@ -61,6 +61,7 @@ class ConfigStoreTest {
         ModConfig config = ConfigStore.load(path);
         assertFalse(config.minecartOverhaulEnabled());
         assertEquals(MinecartConfig.defaults(), config.minecarts());
+        assertEquals(PlannerConfig.defaults(), config.planner());
         assertEquals(oldConfig, Files.readString(path));
     }
 
@@ -86,4 +87,19 @@ class ConfigStoreTest {
             assertEquals(content, Files.readString(path));
         }
     }
+    @Test
+    void plannerDefaultsMigrateAndPartialSettingsAreValidated() throws IOException {
+        Path path = directory.resolve("config.json");
+        Files.writeString(path, "{\"planner\":{\"regionSizeChunks\":64}}");
+        assertEquals(64, ConfigStore.load(path).planner().regionSizeChunks());
+        assertEquals(PlannerConfig.defaults().biomeRules(), ConfigStore.load(path).planner().biomeRules());
+        for (String fields : new String[]{"\"regionSizeChunks\":65", "\"regionSizeChunks\":128.5",
+                "\"boundaryConnectionChance\":2", "\"maximumSlope\":0", "\"biomeRules\":{}", "\"biomeRules\":null"}) {
+            String content = "{\"planner\":{" + fields + "}}";
+            Files.writeString(path, content);
+            assertThrows(RuntimeException.class, () -> ConfigStore.load(path));
+            assertEquals(content, Files.readString(path));
+        }
+    }
+
 }

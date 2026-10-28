@@ -3,6 +3,7 @@ package io.github.andrispowq.lostrailways;
 import io.github.andrispowq.lostrailways.config.ConfigStore;
 import io.github.andrispowq.lostrailways.config.ModConfig;
 import io.github.andrispowq.lostrailways.network.MinecartNetworking;
+import io.github.andrispowq.lostrailways.planner.PlannerCommands;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ public final class LostRailwaysMod implements ModInitializer {
             LOGGER.error("Cannot load Lost Railways configuration; using defaults without replacing the file", exception);
         }
         MinecartNetworking.initialize();
+        PlannerCommands.initialize();
         LOGGER.info("Lost Railways initialized; minecart overhaul enabled: {}", config.minecartOverhaulEnabled());
     }
 

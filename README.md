@@ -2,8 +2,8 @@
 
 A Minecraft Java 26.3 Fabric mod about discovering, restoring, and reusing abandoned railways.
 
-**Status: Phase B minecart overhaul.** Configurable minecart speeds and powered acceleration are implemented.
-Railway generation and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
+**Status: Phase C network planner.** Minecart speed improvements and deterministic, inspectable railway
+planning are implemented. Physical railway placement and Elytra balancing remain future work. See [the specification](docs/plan/lost_railways_spec.md).
 
 ## Development
 
@@ -12,10 +12,10 @@ The game requires Java 25; development and CI deliberately use that version too.
 
 ```sh
 ./gradlew build                 # Compile, JUnit tests, server GameTests, JARs
-./gradlew test                  # Fast configuration and movement unit tests
-./gradlew runGameTest           # Minecart server integration tests
+./gradlew test                  # Fast config, movement, and planner unit tests
+./gradlew runGameTest           # Minecart and planner server integration tests
 ./gradlew runGameTest -PvanillaMinecartTests=true # Disabled-overhaul regression in a separate JVM
-./gradlew runClientGameTest     # Rendering, riding, dedicated connection/reconnect
+./gradlew runClientGameTest     # Rendering, riding, connection, and graph command tests
 ./gradlew runClient             # Interactive development client
 ./gradlew runServer             # Interactive dedicated server
 ```
@@ -76,17 +76,73 @@ transient and resets after unloading/restarting; cart inventory remains vanilla 
 
 Existing Phase A config files remain valid; missing nested settings use defaults without rewriting the
 file. Invalid values log an error and fall back to defaults while preserving the original file. Restart
-to apply changes; live movement-mode changes are intentionally unsupported. Generation and Elytra
-switches remain reserved for later phases. World-specific generation snapshots will be added before
-world generation is implemented.
+to apply changes; live movement-mode changes are intentionally unsupported. The generation switch is snapshotted per world; the Elytra
+switch remains reserved for a later phase.
+
+## Inspect planned railway networks
+
+With cheats enabled or operator permission, run:
+
+```mcfunction
+/lostrailways graph
+/lostrailways graph 0 0
+```
+
+The first command inspects your current region; the second takes **region coordinates**, not block
+coordinates. Defaults use 128×128 chunks (2048×2048 blocks) per region. Negative coordinates use
+floor division, so block X=-1 belongs to region X=-1.
+
+Inspection runs in a background worker and reports candidate stations/junctions, shared boundary
+nodes, route endpoints, unconnected candidates, and work/time statistics. Full waypoint data is saved
+under `<world>/data/lost_railways_debug/region_X_Z.json`. This command **does not place blocks or
+load the inspected chunks**. Empty/disconnected graphs are valid in unsuitable terrain.
+
+The planner currently supports Overworld vanilla noise and flat generators. Plains and selected
+forests are enabled through datapack biome tags; oceans, rivers, and mountains are excluded. Unknown
+biomes default to excluded. Underground networks and broader biome support remain later phases.
+
+Add a `planner` object to the instance config to tune **new worlds** (omitted fields use defaults):
+
+```json
+"planner": {
+  "regionSizeChunks": 128,
+  "boundaryConnectionChance": 0.45,
+  "maximumSlope": 0.25,
+  "biomeRules": {
+    "lost_railways:preferred": { "cost": 1, "stations": true },
+    "lost_railways:forest": { "cost": 3, "stations": true },
+    "lost_railways:excluded": { "cost": 0, "stations": false }
+  }
+}
+```
+
+Region size accepts multiples of 32 from 64–256 chunks; boundary chance accepts 0–1; maximum slope
+accepts values above 0 through 0.5. Biome-rule keys are datapack biome tags; cost 0 excludes, and
+positive costs up to 100 weight routing. Exclusions win overlaps, otherwise the lowest cost wins;
+equal-cost rules allow stations only if all allow them. Supplying `biomeRules` replaces that entire
+map. Tags live under `data/lost_railways/tags/worldgen/biome/` and can be extended by datapacks.
+
+On first initialization, `<world>/data/lost_railways_planner.json` freezes the planner version,
+generation switch, numeric settings, and resolved biome policy. Later config edits or tag reloads
+cannot rearrange that world's network. Set `generationEnabled: false` **before creating a world** to
+disable planning there. Malformed/future-version snapshots disable planning and are preserved; they
+are never silently reset. Keep the snapshot with backups; automatic migration/reset is not provided.
+Reproducibility assumes the same underlying seed/generator and worldgen definitions, not just the
+same mod config; changing those requires separate migration analysis.
+
+Routes are coarse intent on a fixed 33×33 sample grid, not construction-ready tracks. Phase D must
+refine paths, resolve shared corridors/intersections, and validate every placement against terrain,
+structures, and player builds before placing rails. No world-generation hook is installed yet.
 
 ## Tests and CI
 
-- `src/test`: pure JUnit tests for config migration/validation, acceleration, speed caps, powered-time resets, and bounded chunk safety.
+- `src/test`: pure JUnit tests for config migration/validation, acceleration, speed caps, powered-time resets, bounded chunk safety, deterministic planning, world snapshots, and request limits.
 - `src/gametest`: a separate test mod loaded only by Loom test runs. Server tests exercise acceleration to 35 blocks/s, curves, slopes, solid/entity collisions, braking,
   loaded/unloaded chunk boundaries, and cargo preservation. A separate JVM verifies disabled-overhaul
   vanilla behavior. Client tests exercise riding in single-player and over a dedicated-server connection,
-  position synchronization, reconnecting, and rendered screenshots.
+  position synchronization, reconnecting, and rendered screenshots. Planner integration tests verify
+  operator commands, biome tags, persisted settings, and sampling without loading remote chunks; a
+  normal-world client test checks the noise generator and a connected reference route.
 - GitHub Actions runs build/server tests and the client smoke test with Xvfb on Linux. Reports and
   screenshots are uploaded even on failures. Unit and integration results live under `build/`.
 - The **Release candidate** workflow builds a supplied version after both test layers pass and retains

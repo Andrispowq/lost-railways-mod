@@ -1,4 +1,4 @@
-# Phase B verification
+# Verification
 
 Run `./gradlew build` for unit and enabled-overhaul server tests, then
 `./gradlew runGameTest -PvanillaMinecartTests=true` for the disabled-overhaul suite.
@@ -45,3 +45,27 @@ for the server suites is retained under `build/test-results/gameTest` and `vanil
    The automated single-client checks are not a load benchmark or a compatibility certification.
 
 World generation, railway networks, furnace locomotives/convoys, and Elytra balancing are outside Phase B.
+
+## Phase C planner verification
+
+The same build and client commands now include planner coverage:
+
+- Fixed planner-v1 topology fingerprint, repeatability across visitation order and concurrent calls,
+  and different seed/dimension outputs.
+- Matching boundary node IDs/coordinates/heights on both axes, including negative regions.
+- Connected flat-terrain graphs, immutable output, continuous coarse waypoints, forbidden-biome/cliff
+  separation, weighted detours, and fixed sample/search limits.
+- World snapshot round-trip with changed config/datapacks ignored; malformed/new-version files
+  preserved. Configuration migration and validation remain covered.
+- Background execution, cache reuse, bounded request queue, cancellation, and disabled-world behavior.
+- Real server command registration/execution/export and generator sampling without loading remote chunks.
+- A client submits `/lostrailways graph 80 80` in a normal seed-42 world, exercising actual noise terrain
+  sampling and the command permission/packet path. Its remote region must remain unloaded. The
+  test limits render/simulation distance to two chunks and does not wait for the entire view to render;
+  the existing bootstrap test separately covers rendered-world startup.
+
+Manual checks: compare adjacent region exports across a server restart; try a datapack biome-tag
+change on a fresh world and confirm an existing world's policy stays frozen. Inspect multiple seeds
+before adjusting density. Region timing is included in command output; this is not a world-generation
+performance benchmark, since Phase C installs no placement callback. Physical placement/protection,
+route refinement, and shared-corridor junctions are Phase D work.

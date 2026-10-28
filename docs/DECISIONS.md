@@ -130,3 +130,62 @@ The same client suite also passed in the local Ubuntu 24.04 ARM64 Docker environ
 Mesa software rendering in 5m 42s. Logs and screenshots are retained under ignored
 `build/phase-b-evidence/linux/`. This verifies the shared CI launcher locally; GitHub's x86-64 run
 remains for the owner to check after committing and pushing.
+
+## 2026-10-28 — Phase C network planner
+
+Implement an inspectable planning layer before installing world-generation placement callbacks.
+Planner v1 is stateless: world seed, dimension, fixed feature salt, region coordinate, frozen settings,
+and seed-derived terrain determine immutable nodes/edges/waypoints. A golden topology fixture makes
+accidental changes to persisted-world routing visible. Future topology changes require an explicit
+version/migration decision, rather than silently replacing the snapshot.
+
+Use 128-chunk regions by default and a fixed 33×33 terrain grid. Select up to three well-separated
+station candidates in the largest suitable connected interior area, rather than scattering candidates
+across isolated biome pockets. Classify degree-three-or-higher internal nodes as junctions. Canonical
+boundary keys independently select matching gateway IDs/coordinates for both neighbors, including
+negative coordinates. A gateway agreement is a shared candidate, not a promise that both regions can
+route to it; disconnected candidates are explicitly reported and place nothing.
+
+Evaluate bounded, deterministic weighted shortest paths between candidate pairs and retain a
+minimum-cost spanning forest. Excluded samples and excessive sampled gradients prevent traversal;
+non-gateway border samples cannot become accidental crossings. At most seven nodes yield 21 searches,
+each expanding at most 1089 cells. Interior connectivity classification is another bounded grid pass.
+This permits disconnected components instead of forcing routes through unsuitable terrain. Routes
+remain coarse intent: Phase D must refine terrain, merge shared corridors/intersections into physical
+junctions, and apply structure/player-build protections before placing any block.
+
+Biome policy is data-driven through tag-to-cost/station rules. Defaults permit plains and selected
+forests; exclusion tags take precedence and unknown biomes are excluded. Positive costs choose the
+lowest matching cost, with station permission intersected on equal-cost ties. Later biome/underground
+expansion remains Phase E. The current planner supports Overworld vanilla noise and flat generators;
+other generators fail explicitly until their sampling/thread-safety contracts are verified.
+
+Capture generator inputs on the server thread, then use private biome sampling caches and base-height
+noise queries on one background worker. Never query loaded chunk terrain or generate distant chunks.
+Two queued requests and a sixteen-region LRU cache bound background work/memory; shutdown interrupts
+planning and cancels outstanding requests. The command reports work counters and elapsed time.
+
+On first server initialization, atomically write `data/lost_railways_planner.json` inside the world.
+Freeze planner version, generation enablement, settings, and resolved biome policies. Load the existing
+snapshot without reevaluating instance defaults or datapack tags. Strict numeric/boolean validation
+rejects incomplete, malformed, or newer snapshots and disables only planning while preserving the
+file. Changing the underlying seed, generator, Minecraft worldgen implementation, or worldgen
+noise/biome definitions is outside this snapshot's reproducibility contract and requires separate
+migration analysis. No reset/migration command is supplied in this phase.
+
+Expose `/lostrailways graph [regionX regionZ]` to operators. It queues planning, lists nodes/routes and
+unconnected candidates, and atomically exports full JSON under `data/lost_railways_debug/`. It places
+no blocks. Region exports are explicit debug artifacts; the in-memory planner cache remains bounded.
+
+Verification: the final build passed 29 JUnit tests and 12 enabled server GameTests; the separate
+vanilla-minecart regression passed all 5 tests (including planner checks). The native client suite
+passed, and the Ubuntu 24.04 ARM64/Xvfb software-rendered suite passed in 7m 23s. The normal-world
+command test uses two-chunk render/simulation distances and waits for its graph export, avoiding an
+unrelated full-view render wait that exhausted the first Linux attempt's overall timeout.
+
+The seed-42 region (80,80) export is identical on macOS and Linux: two connected nodes, one route,
+14 waypoints, 1089 terrain samples, and 36 search expansions. The client regression now requires a
+connected route in this reference region; that assertion was checked against both saved exports.
+Evidence is retained under ignored `build/phase-c-evidence/`. The mod JAR contains planner classes
+and biome tags and excludes test classes. Existing CI tasks discover the expanded suites; GitHub
+status remains for the owner to check after committing/pushing.

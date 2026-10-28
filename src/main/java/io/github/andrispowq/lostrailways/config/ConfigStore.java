@@ -38,7 +38,7 @@ public final class ConfigStore {
                 readBoolean(json, "generationEnabled", defaults.generationEnabled()),
                 readBoolean(json, "minecartOverhaulEnabled", defaults.minecartOverhaulEnabled()),
                 readBoolean(json, "elytraBalanceEnabled", defaults.elytraBalanceEnabled()),
-                readMinecartConfig(json));
+                readMinecartConfig(json), readPlannerConfig(json));
     }
 
     private static MinecartConfig readMinecartConfig(JsonObject json) {
@@ -58,6 +58,10 @@ public final class ConfigStore {
             }
         }
         return GSON.fromJson(settings, MinecartConfig.class);
+    }
+
+    private static PlannerConfig readPlannerConfig(JsonObject json) {
+        return json.has("planner") ? PlannerConfigJson.read(json.getAsJsonObject("planner"), true) : PlannerConfig.defaults();
     }
 
     private static boolean readBoolean(JsonObject json, String name, boolean fallback) {
